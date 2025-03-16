@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/qor5/admin/v3/activity"
 	plogin "github.com/qor5/admin/v3/login"
@@ -227,40 +226,6 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 			return
 		}
 		return
-	})
-
-	dp := user.Detailing("ID", "Name", "Account", "Status", "Roles", "Company", "CreatedAt", "UpdatedAt").
-		Drawer(true)
-
-	dp.Field("Status").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
-		u := obj.(*models.User)
-		var color string
-		switch u.Status {
-		case models.StatusActive:
-			color = "green"
-		case models.StatusInactive:
-			color = "red"
-		}
-		return v.VChip(h.Text(u.Status)).Color(color)
-	})
-
-	dp.Field("Roles").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
-		u := obj.(*models.User)
-		var roles []string
-		for _, r := range u.Roles {
-			roles = append(roles, r.Name)
-		}
-		return h.Text(strings.Join(roles, ", "))
-	})
-
-	dp.Field("CreatedAt").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
-		u := obj.(*models.User)
-		return h.Text(u.CreatedAt.Format(time.RFC3339))
-	})
-
-	dp.Field("UpdatedAt").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
-		u := obj.(*models.User)
-		return h.Text(u.UpdatedAt.Format(time.RFC3339))
 	})
 
 }
