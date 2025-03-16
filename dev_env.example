@@ -1,0 +1,34 @@
+export TZ="Asia/Shanghai"
+export DB_PARAMS="user=example password=123 dbname=example_dev sslmode=disable host=localhost port=6432 TimeZone=Asia/Shanghai"
+export PORT="9500"
+export AWS_SDK_LOAD_CONFIG=1
+export S3_Bucket=""
+export S3_Region=""
+export S3_Publish_Bucket=""
+export S3_Publish_Region=""
+
+export BASE_URL="https://localhost:9500"
+export LOGIN_SECRET="my-secret"
+export SESSION_SECRET="strong-secret"
+export LOGIN_GOOGLE_KEY=""
+export LOGIN_GOOGLE_SECRET=""
+export PORT="9500"
+export LOGIN_INITIAL_USER_EMAIL="admin@admin.com"
+export LOGIN_INITIAL_USER_PASSWORD="Admin123456789"
+
+export LOGIN_MICROSOFTONLINE_KEY=
+export LOGIN_MICROSOFTONLINE_SECRET="ts"
+export LOGIN_GITHUB_KEY=""
+export LOGIN_GITHUB_SECRET="ts"
+
+
+
+export CGO_CFLAGS_ALLOW="-Xpreprocessor"
+
+export Site_Domain=""
+
+export RECAPTCHA_SITE_KEY=""
+export RECAPTCHA_SECRET_KEY=""
+
+export RESET_AND_IMPORT_INITIAL_DATA=false
+export CookieSecure=true

@@ -117,7 +117,49 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		return h.Td(v.VChip(h.Text(u.Status)).Color(color))
 	})
 
-	ed := user.Editing("Name", "Account", "Status", "Roles", "Company")
+	ed := user.Editing("Type", "Name", "OAuthProvider", "OAuthIdentifier", "Account", "Status", "Roles", "Company")
+
+	ed.Field("Type").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		u := obj.(*models.User)
+		if u.ID == 0 {
+			return nil
+		}
+
+		var accountType string
+		if u.IsOAuthUser() {
+			accountType = "OAuth Account"
+		} else {
+			accountType = "Main Account"
+		}
+
+		return h.Div(
+			v.VRow(
+				v.VCol(
+					h.Text(accountType),
+				).Class("text-left deep-orange--text"),
+			),
+		).Class("mb-2")
+	})
+
+	ed.Field("OAuthProvider").Label("OAuth Provider").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		u := obj.(*models.User)
+		if !u.IsOAuthUser() && u.ID != 0 {
+			return nil
+		} else {
+			return v.VSelect().Attr(web.VField(field.Name, field.Value(obj))...).
+				Label(field.Label).
+				Items(models.OAuthProviders)
+		}
+	})
+
+	ed.Field("OAuthIdentifier").Label("OAuth Identifier").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		u := obj.(*models.User)
+		if !u.IsOAuthUser() {
+			return nil
+		} else {
+			return v.VTextField().Attr(web.VField(field.Name, field.Value(obj))...).Label(field.Label).ErrorMessages(field.Errors...).Disabled(true)
+		}
+	})
 
 	ed.Field("Status").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
 		return v.VSelect().Attr(web.VField(field.Name, field.Value(obj))...).
