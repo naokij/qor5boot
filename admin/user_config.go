@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,8 +15,10 @@ import (
 	"github.com/qor5/admin/v3/role"
 	"github.com/qor5/web/v3"
 	"github.com/qor5/x/v3/i18n"
+	"github.com/qor5/x/v3/perm"
 	v "github.com/qor5/x/v3/ui/vuetify"
 	vx "github.com/qor5/x/v3/ui/vuetifyx"
+	"github.com/sunfmin/reflectutils"
 	h "github.com/theplant/htmlgo"
 	"gorm.io/gorm"
 
@@ -117,53 +120,71 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 	ed := user.Editing("Name", "Account", "Status", "Roles", "Company")
 
 	ed.Field("Status").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
-		u := obj.(*models.User)
-		return v.VSelect().
+		return v.VSelect().Attr(web.VField(field.Name, field.Value(obj))...).
 			Label(field.Label).
-			Items([]struct {
-				Text  string
-				Value string
-			}{
-				{Text: "Active", Value: models.StatusActive},
-				{Text: "Inactive", Value: models.StatusInactive},
-			}).
-			Value(u.Status).
-			Attr(web.VField(field.FormKey, u.Status)...)
+			Items([]string{"active", "inactive"})
 	})
 
 	ed.Field("Roles").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
-		u := obj.(*models.User)
-		var roleIds []string
-		for _, r := range u.Roles {
-			roleIds = append(roleIds, fmt.Sprint(r.ID))
+		selectedItems := []v.DefaultOptionItem{}
+		var values []string
+		u, ok := obj.(*models.User)
+		if ok {
+			var roles []role.Role
+			db.Model(u).Association("Roles").Find(&roles)
+			for _, r := range roles {
+				values = append(values, fmt.Sprint(r.ID))
+				selectedItems = append(selectedItems, v.DefaultOptionItem{
+					Text:  r.Name,
+					Value: fmt.Sprint(r.ID),
+				})
+			}
 		}
 
-		var roles []*role.Role
-		if err := db.Find(&roles).Error; err != nil {
-			panic(err)
-		}
-
-		var items []struct {
-			Text  string
-			Value string
-		}
+		var roles []role.Role
+		db.Find(&roles)
+		allRoleItems := []v.DefaultOptionItem{}
 		for _, r := range roles {
-			items = append(items, struct {
-				Text  string
-				Value string
-			}{
+			allRoleItems = append(allRoleItems, v.DefaultOptionItem{
 				Text:  r.Name,
 				Value: fmt.Sprint(r.ID),
 			})
 		}
 
-		return v.VSelect().
-			Label(field.Label).
-			Items(items).
-			Value(roleIds).
-			Multiple(true).
-			Chips(true).
-			Attr(web.VField(field.FormKey, roleIds)...)
+		return v.VAutocomplete().Label(field.Label).Chips(true).
+			Items(allRoleItems).ItemTitle("text").ItemValue("value").
+			Multiple(true).Attr(web.VField(field.Name, values)...).
+			ErrorMessages(field.Errors...).
+			Disabled(field.Disabled)
+	}).SetterFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) (err error) {
+		u, ok := obj.(*models.User)
+		if !ok {
+			return
+		}
+		if u.GetAccountName() == loginInitialUserEmail {
+			return perm.PermissionDenied
+		}
+		rids := ctx.R.Form[field.Name]
+		var roles []role.Role
+		for _, id := range rids {
+			uid, err1 := strconv.Atoi(id)
+			if err1 != nil {
+				continue
+			}
+			roles = append(roles, role.Role{
+				Model: gorm.Model{ID: uint(uid)},
+			})
+		}
+
+		if u.ID == 0 {
+			err = reflectutils.Set(obj, field.Name, roles)
+		} else {
+			err = db.Model(u).Association(field.Name).Replace(roles)
+		}
+		if err != nil {
+			return
+		}
+		return
 	})
 
 	dp := user.Detailing("ID", "Name", "Account", "Status", "Roles", "Company", "CreatedAt", "UpdatedAt").
