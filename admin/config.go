@@ -22,6 +22,7 @@ import (
 	v "github.com/qor5/x/v3/ui/vuetify"
 	h "github.com/theplant/htmlgo"
 	"golang.org/x/text/language"
+	"golang.org/x/text/language/display"
 	"gorm.io/gorm"
 
 	"github.com/naokij/qor5boot/models"
@@ -265,6 +266,89 @@ func configMenuOrder(b *presets.Builder) {
 }
 
 func configBrand(b *presets.Builder) {
+	b.SwitchLanguageFunc(func(ctx *web.EventContext) h.HTMLComponent {
+		supportLanguages := b.GetI18n().GetSupportLanguagesFromRequest(ctx.R)
+
+		if len(b.GetI18n().GetSupportLanguages()) <= 1 || len(supportLanguages) == 0 {
+			return nil
+		}
+
+		queryName := b.GetI18n().GetQueryName()
+		msgr := presets.MustGetMessages(ctx.R)
+
+		if len(supportLanguages) == 1 {
+			return h.Template().Children(
+				h.Div(
+					v.VList(
+						v.VListItem(
+							web.Slot(
+								v.VIcon("mdi-translate").Size(v.SizeSmall).Class("mr-4 ml-1"),
+							).Name("prepend"),
+							v.VListItemTitle(
+								h.Div(h.Text(fmt.Sprintf("%s%s %s", msgr.Language, msgr.Colon, display.Self.Name(supportLanguages[0])))).Role("button"),
+							),
+						).Class("pa-0").Density(v.DensityCompact),
+					).Class("pa-0 ma-n4 mt-n6"),
+				).Attr("@click", web.Plaid().MergeQuery(true).Query(queryName, supportLanguages[0].String()).Go()),
+			)
+		}
+
+		// 使用语言简写作为显示文本，使用translate图标
+		currentLanguage := "EN"
+		lang := ctx.R.FormValue(queryName)
+		if lang == "" {
+			lang = b.GetI18n().GetCurrentLangFromCookie(ctx.R)
+		}
+		switch lang {
+		case language.SimplifiedChinese.String():
+			currentLanguage = "中文"
+		case language.English.String():
+			currentLanguage = "EN"
+		case language.Japanese.String():
+			currentLanguage = "JP"
+		}
+
+		var languages []h.HTMLComponent
+		for _, tag := range supportLanguages {
+			var langText string
+			switch tag.String() {
+			case language.SimplifiedChinese.String():
+				langText = "中文"
+			case language.English.String():
+				langText = "English"
+			case language.Japanese.String():
+				langText = "日本語"
+			default:
+				langText = display.Self.Name(tag)
+			}
+
+			languages = append(languages,
+				h.Div(
+					v.VListItem(
+						v.VListItemTitle(
+							h.Div(h.Text(langText)),
+						),
+					).Attr("@click", web.Plaid().MergeQuery(true).Query(queryName, tag.String()).Go()),
+				),
+			)
+		}
+
+		return v.VMenu().Children(
+			h.Template().Attr("v-slot:activator", "{isActive, props}").Children(
+				h.Div(
+					v.VBtn("").Children(
+						v.VIcon("mdi-translate"),
+						h.Span(currentLanguage).Class("ml-2"),
+						v.VIcon("mdi-menu-down").Class("ml-1"),
+					).Attr("variant", "text").Class("i18n-switcher-btn"),
+				).Attr("v-bind", "props").Style("display: inline-block;"),
+			),
+			v.VList(
+				languages...,
+			).Density(v.DensityCompact),
+		)
+	})
+
 	b.BrandFunc(func(ctx *web.EventContext) h.HTMLComponent {
 		msgr := i18n.MustGetModuleMessages(ctx.R, I18nExampleKey, Messages_zh_CN).(*Messages)
 		logo := "https://qor5.com/img/qor-logo.png"
