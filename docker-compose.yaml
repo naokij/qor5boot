@@ -8,4 +8,4 @@ services:
       - "POSTGRES_PASSWORD=123"
       - "POSTGRES_DB=example_dev"
     ports:
-      - "6432:5432"
+      - "5432:5432"

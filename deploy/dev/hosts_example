@@ -1,0 +1,3 @@
+
+[qor5boot]
+10.0.0.1 ansible_user=root timezone=Asia/Shanghai hostname=dev.domain.com

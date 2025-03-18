@@ -1,3 +1,4 @@
 /vendor/*
 qor5boot
 dev_env
+deploy/dev/hosts

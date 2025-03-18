@@ -1,0 +1,18 @@
+[Unit]
+Description={{ app_name }} Service
+After=network.target postgresql.service
+
+[Service]
+User={{ app_user }}
+Group={{ app_user }}
+WorkingDirectory={{ app_path }}
+EnvironmentFile={{ app_path }}/env
+ExecStart={{ app_path }}/{{ app_binary }}
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{ app_name }}
+
+[Install]
+WantedBy=multi-user.target 

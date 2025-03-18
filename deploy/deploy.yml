@@ -1,0 +1,205 @@
+---
+- name: 部署qor5boot应用测试环境
+  hosts: qor5boot
+  become: true
+  vars:
+    app_name: qor5boot
+    app_user: www-data
+    app_path: /opt/{{ app_name }}
+    app_binary: qor5boot
+    app_port: 9500
+    binary_local_path: "{{ lookup('env', 'PWD') }}/{{ app_binary }}"
+    env_file_local_path: "{{ lookup('env', 'PWD') }}/dev_env"
+    postgres_user: example
+    postgres_password: 123
+    postgres_db: example_dev
+    postgres_port: 5432
+
+  tasks:
+    - name: 更新apt缓存
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: 安装必要的软件包
+      apt:
+        name:
+          - nginx
+          - ufw
+          - postgresql
+          - postgresql-contrib
+          - ca-certificates
+          - tzdata
+          - python3-psycopg2
+        state: present
+
+    - name: 设置时区
+      timezone:
+        name: "{{ timezone }}"
+      
+    - name: 设置主机名
+      hostname:
+        name: "{{ hostname }}"
+
+    - name: 创建应用目录
+      file:
+        path: "{{ app_path }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+
+    - name: 上传应用程序二进制文件
+      copy:
+        src: "{{ binary_local_path }}"
+        dest: "{{ app_path }}/{{ app_binary }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+      notify: 重启应用服务
+
+    - name: 上传环境变量配置文件
+      copy:
+        src: "{{ env_file_local_path }}"
+        dest: "{{ app_path }}/env_shell"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+      notify: 重启应用服务
+      
+    - name: 转换环境变量文件格式为systemd格式
+      shell: |
+        # 提取所有环境变量并移除export关键字
+        cat {{ app_path }}/env_shell | grep -E '^export' | sed -e 's/^export\s*//' -e 's/"//g' > {{ app_path }}/env
+      notify: 重启应用服务
+      
+    - name: 修改数据库连接参数
+      lineinfile:
+        path: "{{ app_path }}/env"
+        regexp: '^DB_PARAMS='
+        line: 'DB_PARAMS=user={{ postgres_user }} password={{ postgres_password }} dbname={{ postgres_db }} sslmode=disable host=localhost port={{ postgres_port }} TimeZone=Asia/Shanghai'
+      notify: 重启应用服务
+
+    - name: 确保环境变量文件权限正确
+      file:
+        path: "{{ app_path }}/env"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+      notify: 重启应用服务
+      
+    - name: 检查环境变量文件内容(调试)
+      command: cat {{ app_path }}/env
+      register: env_content
+      changed_when: false
+      
+    - name: 输出环境变量文件内容(调试)
+      debug:
+        msg: "{{ env_content.stdout_lines }}"
+
+    - name: 配置PostgreSQL
+      become: true
+      become_user: postgres
+      postgresql_db:
+        name: "{{ postgres_db }}"
+        state: present
+
+    - name: 创建PostgreSQL用户
+      become: true
+      become_user: postgres
+      postgresql_user:
+        db: "{{ postgres_db }}"
+        name: "{{ postgres_user }}"
+        password: "{{ postgres_password }}"
+        priv: "ALL"
+        state: present
+
+    - name: 授予用户对public schema的权限
+      become: true
+      become_user: postgres
+      postgresql_query:
+        db: "{{ postgres_db }}"
+        query: "GRANT ALL ON SCHEMA public TO {{ postgres_user }}; ALTER SCHEMA public OWNER TO {{ postgres_user }};"
+
+    - name: 允许本地连接PostgreSQL
+      lineinfile:
+        path: /etc/postgresql/16/main/pg_hba.conf
+        line: "host    all             all             127.0.0.1/32            scram-sha-256"
+        insertafter: "^# IPv4 local connections:"
+        state: present
+      notify: 重启PostgreSQL
+
+    - name: 确保PostgreSQL监听在localhost上
+      lineinfile:
+        path: /etc/postgresql/16/main/postgresql.conf
+        regexp: "^#?listen_addresses\\s*=.*$"
+        line: "listen_addresses = 'localhost'"
+        state: present
+      notify: 重启PostgreSQL
+
+    - name: 配置systemd服务
+      template:
+        src: templates/app.service.j2
+        dest: /etc/systemd/system/{{ app_name }}.service
+      notify: 重启应用服务
+
+    - name: 配置nginx
+      template:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/sites-available/{{ app_name }}
+      notify: 重启nginx
+
+    - name: 启用nginx站点配置
+      file:
+        src: /etc/nginx/sites-available/{{ app_name }}
+        dest: /etc/nginx/sites-enabled/{{ app_name }}
+        state: link
+      notify: 重启nginx
+
+    - name: 确保nginx已启动并设置为开机启动
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: 确保应用服务已启动并设置为开机启动
+      systemd:
+        name: "{{ app_name }}"
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    - name: 配置UFW防火墙
+      ufw:
+        rule: allow
+        name: "{{ item }}"
+      loop:
+        - OpenSSH
+        - 'Nginx Full'
+
+    - name: 允许应用端口
+      ufw:
+        rule: allow
+        port: "{{ app_port }}"
+        proto: tcp
+
+    - name: 启用UFW
+      ufw:
+        state: enabled
+
+  handlers:
+    - name: 重启nginx
+      service:
+        name: nginx
+        state: restarted
+
+    - name: 重启PostgreSQL
+      service:
+        name: postgresql
+        state: restarted
+
+    - name: 重启应用服务
+      systemd:
+        name: "{{ app_name }}"
+        state: restarted
+        daemon_reload: yes 

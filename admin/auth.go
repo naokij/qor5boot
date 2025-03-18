@@ -3,8 +3,6 @@ package admin
 import (
 	"errors"
 	"net/http"
-	"strings"
-	"time"
 
 	"github.com/markbates/goth"
 	"github.com/markbates/goth/providers/github"
@@ -99,39 +97,35 @@ func initLoginSessionBuilder(db *gorm.DB, pb *presets.Builder, ab *activity.Buil
 				if err := in(r, user, extraVals...); err != nil {
 					return err
 				}
+
 				u := user.(goth.User)
 				if u.Email == "" {
 					return nil
 				}
-				if err := db.Where("o_auth_provider = ? and o_auth_identifier = ?", u.Provider, u.Email).First(&models.User{}).
-					Error; errors.Is(err, gorm.ErrRecordNotFound) {
-					var name string
-					at := strings.LastIndex(u.Email, "@")
-					if at > 0 {
-						name = u.Email[:at]
-					} else {
-						name = u.Email
-					}
 
-					user := &models.User{
-						Name:             name,
-						Status:           models.StatusActive,
-						RegistrationDate: time.Now(),
-						OAuthInfo: login.OAuthInfo{
-							OAuthProvider:   u.Provider,
-							OAuthUserID:     u.UserID,
-							OAuthIdentifier: u.Email,
-							OAuthAvatar:     u.AvatarURL,
-						},
-					}
+				// 查找是否有匹配的用户账号
+				var existingUser models.User
+				err := db.Where("account = ?", u.Email).First(&existingUser).Error
 
-					if err := db.Create(user).Error; err != nil {
-						panic(err)
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					// 没有找到匹配用户，拒绝登录
+					return &login.NoticeError{
+						Level:   login.NoticeLevel_Error,
+						Message: "您的账号未在系统中注册。请联系管理员授权后再使用OAuth登录。",
 					}
+				} else if err != nil {
+					// 数据库查询错误
+					return err
+				}
 
-					if err := grantUserRole(db, user.ID, models.RoleAdmin); err != nil {
-						panic(err)
-					}
+				// 找到匹配用户，更新OAuth信息
+				existingUser.OAuthProvider = u.Provider
+				existingUser.OAuthUserID = u.UserID
+				existingUser.OAuthIdentifier = u.Email
+				existingUser.OAuthAvatar = u.AvatarURL
+
+				if err := db.Save(&existingUser).Error; err != nil {
+					return err
 				}
 
 				return nil

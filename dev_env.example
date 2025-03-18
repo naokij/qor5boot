@@ -1,5 +1,5 @@
 export TZ="Asia/Shanghai"
-export DB_PARAMS="user=example password=123 dbname=example_dev sslmode=disable host=localhost port=6432 TimeZone=Asia/Shanghai"
+export DB_PARAMS="user=example password=123 dbname=example_dev sslmode=disable host=localhost port=5432 TimeZone=Asia/Shanghai"
 export PORT="9500"
 export AWS_SDK_LOAD_CONFIG=1
 export S3_Bucket=""
