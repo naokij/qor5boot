@@ -116,7 +116,7 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		return h.Td(v.VChip(h.Text(u.Status)).Color(color))
 	})
 
-	ed := user.Editing("Type", "Name", "OAuthProvider", "OAuthIdentifier", "Account", "Status", "Roles", "Company")
+	ed := user.Editing("Type", "Name", "OAuthProvider", "OAuthIdentifier", "Account", "Password", "Status", "Roles", "Company")
 
 	ed.Field("Type").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
 		u := obj.(*models.User)
@@ -158,6 +158,23 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		} else {
 			return v.VTextField().Attr(web.VField(field.Name, field.Value(obj))...).Label(field.Label).ErrorMessages(field.Errors...).Disabled(true)
 		}
+	})
+
+	ed.Field("Password").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		//密码控件 - 回到最简单的实现方式
+		return v.VTextField().
+			Attr(web.VField(field.Name, "")...).
+			Label(field.Label).
+			Type("password").
+			Placeholder("输入密码").
+			ErrorMessages(field.Errors...)
+	}).SetterFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) (err error) {
+		u := obj.(*models.User)
+		if v := ctx.R.FormValue(field.Name); v != "" {
+			u.Password = v
+			u.EncryptPassword()
+		}
+		return nil
 	})
 
 	ed.Field("Status").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
@@ -202,9 +219,46 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		if !ok {
 			return
 		}
+
+		// 允许修改 admin@admin.com 用户，但不允许删除其 Admin 角色
 		if u.GetAccountName() == loginInitialUserEmail {
-			return perm.PermissionDenied
+			// 检查是否移除了 Admin 角色
+			rids := ctx.R.Form[field.Name]
+			hasAdminRole := false
+
+			// 查找所有角色
+			var roles []role.Role
+			if err = db.Find(&roles).Error; err != nil {
+				return err
+			}
+
+			// 找到 Admin 角色的 ID
+			var adminRoleID uint
+			for _, r := range roles {
+				if r.Name == models.RoleAdmin {
+					adminRoleID = r.ID
+					break
+				}
+			}
+
+			// 检查提交的角色中是否包含 Admin 角色
+			for _, id := range rids {
+				uid, err1 := strconv.Atoi(id)
+				if err1 != nil {
+					continue
+				}
+				if uint(uid) == adminRoleID {
+					hasAdminRole = true
+					break
+				}
+			}
+
+			// 如果移除了 Admin 角色，则拒绝请求
+			if !hasAdminRole {
+				return perm.PermissionDenied
+			}
 		}
+
 		rids := ctx.R.Form[field.Name]
 		var roles []role.Role
 		for _, id := range rids {
