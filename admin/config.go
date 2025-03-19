@@ -428,5 +428,18 @@ func configProfile(db *gorm.DB, ab *activity.Builder, lsb *plogin.SessionBuilder
 			}
 			return nil
 		},
-	).SessionBuilder(lsb) // .DisableNotification(true).LogoutURL(lsb.GetLoginBuilder().LogoutURL)
+	).SessionBuilder(lsb).CustomizeButtons(func(ctx context.Context, buttons ...h.HTMLComponent) ([]h.HTMLComponent, error) {
+		// 添加修改密码按钮
+		msgr := i18n.MustGetModuleMessages(web.MustGetEventContext(ctx).R, I18nExampleKey, Messages_zh_CN).(*Messages)
+
+		changePasswordBtn := v.VBtn(msgr.ChangePassword).
+			Variant(v.VariantTonal).
+			Color(v.ColorPrimary).
+			OnClick(plogin.OpenChangePasswordDialogEvent)
+
+		// 将修改密码按钮插入到原有按钮之前
+		newButtons := append([]h.HTMLComponent{changePasswordBtn}, buttons...)
+
+		return newButtons, nil
+	})
 }
