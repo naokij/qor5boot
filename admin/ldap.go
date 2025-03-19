@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/go-ldap/ldap/v3"
 	"github.com/naokij/qor5boot/models"
@@ -84,7 +84,7 @@ func authenticateWithLDAP(email, password string) (bool, error) {
 
 		// 如果指定了证书文件，加载证书
 		if ldapCertFile != "" {
-			cert, err := ioutil.ReadFile(ldapCertFile)
+			cert, err := os.ReadFile(ldapCertFile)
 			if err != nil {
 				log.Printf("读取LDAP证书文件错误: %v", err)
 				return false, err
