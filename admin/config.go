@@ -137,8 +137,8 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 	b.GetI18n().
 		SupportLanguages(language.SimplifiedChinese, language.English).
 		RegisterForModule(language.SimplifiedChinese, presets.ModelsI18nModuleKey, Messages_zh_CN_ModelsI18nModuleKey).
-		RegisterForModule(language.SimplifiedChinese, I18nExampleKey, Messages_zh_CN).
-		RegisterForModule(language.English, I18nExampleKey, Messages_en_US).
+		RegisterForModule(language.SimplifiedChinese, I18nAdminKey, Messages_zh_CN).
+		RegisterForModule(language.English, I18nAdminKey, Messages_en_US).
 		GetSupportLanguagesFromRequestFunc(func(r *http.Request) []language.Tag {
 			// // Example:
 			// user := getCurrentUser(r)
@@ -350,7 +350,7 @@ func configBrand(b *presets.Builder) {
 	})
 
 	b.BrandFunc(func(ctx *web.EventContext) h.HTMLComponent {
-		msgr := i18n.MustGetModuleMessages(ctx.R, I18nExampleKey, Messages_zh_CN).(*Messages)
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
 		logo := "https://qor5.com/img/qor-logo.png"
 
 		now := time.Now()
@@ -430,7 +430,7 @@ func configProfile(db *gorm.DB, ab *activity.Builder, lsb *plogin.SessionBuilder
 		},
 	).SessionBuilder(lsb).CustomizeButtons(func(ctx context.Context, buttons ...h.HTMLComponent) ([]h.HTMLComponent, error) {
 		// 添加修改密码按钮
-		msgr := i18n.MustGetModuleMessages(web.MustGetEventContext(ctx).R, I18nExampleKey, Messages_zh_CN).(*Messages)
+		msgr := i18n.MustGetModuleMessages(web.MustGetEventContext(ctx).R, I18nAdminKey, Messages_zh_CN).(*Messages)
 
 		changePasswordBtn := v.VBtn(msgr.ChangePassword).
 			Variant(v.VariantTonal).

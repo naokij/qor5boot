@@ -79,7 +79,7 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 	})
 
 	cl.FilterTabsFunc(func(ctx *web.EventContext) []*presets.FilterTab {
-		msgr := i18n.MustGetModuleMessages(ctx.R, I18nExampleKey, Messages_zh_CN).(*Messages)
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
 
 		return []*presets.FilterTab{
 			{

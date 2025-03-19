@@ -4,7 +4,7 @@ import (
 	"github.com/qor5/x/v3/i18n"
 )
 
-const I18nExampleKey i18n.ModuleKey = "I18nExampleKey"
+const I18nAdminKey i18n.ModuleKey = "I18nAdminKey"
 
 type Messages struct {
 	FilterTabsAll                  string
