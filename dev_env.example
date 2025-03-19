@@ -21,7 +21,17 @@ export LOGIN_MICROSOFTONLINE_SECRET="ts"
 export LOGIN_GITHUB_KEY=""
 export LOGIN_GITHUB_SECRET="ts"
 
-
+# LDAP配置
+export LDAP_ENABLED="true"
+export LDAP_SERVER="ldap.example.com"
+export LDAP_PORT="389"
+export LDAP_BIND_DN="cn=admin,dc=example,dc=com"
+export LDAP_BIND_PASSWORD="adminpassword"
+export LDAP_SEARCH_BASE="dc=example,dc=com"
+export LDAP_SEARCH_FILTER="(mail=%s)"
+export LDAP_USE_TLS="false"
+export LDAP_SKIP_VERIFY="false"
+export LDAP_CERT_FILE=""
 
 export CGO_CFLAGS_ALLOW="-Xpreprocessor"
 

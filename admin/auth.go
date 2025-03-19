@@ -188,7 +188,7 @@ func genInitialUser(db *gorm.DB) {
 	user := &models.User{
 		Name:   email,
 		Status: models.StatusActive,
-		UserPass: login.UserPass{
+		LDAPUserPass: models.LDAPUserPass{
 			Account:  email,
 			Password: password,
 		},

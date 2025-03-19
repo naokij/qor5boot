@@ -44,6 +44,7 @@ var assets embed.FS
 type Config struct {
 	pb                  *presets.Builder
 	loginSessionBuilder *plogin.SessionBuilder
+	db                  *gorm.DB
 }
 
 func (c *Config) GetPresetsBuilder() *presets.Builder {
@@ -75,6 +76,9 @@ func getEnvWithDefaultBool(key string, defaultValue bool) bool {
 }
 
 func NewConfig(db *gorm.DB, enableWork bool) Config {
+	// 初始化LDAP配置
+	initLDAP()
+
 	if err := db.AutoMigrate(
 		&models.User{},
 		&role.Role{},
@@ -246,6 +250,7 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 	return Config{
 		pb:                  b,
 		loginSessionBuilder: loginSessionBuilder,
+		db:                  db,
 	}
 }
 

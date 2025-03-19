@@ -47,7 +47,7 @@ type User struct {
 	CreatedAt        time.Time
 
 	// Username is email
-	login.UserPass
+	LDAPUserPass
 	login.OAuthInfo
 	login.SessionSecure
 }

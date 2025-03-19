@@ -7,6 +7,7 @@ toolchain go1.24.1
 require (
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/go-chi/chi/v5 v5.1.0
+	github.com/go-ldap/ldap/v3 v3.4.10
 	github.com/iancoleman/strcase v0.3.0
 	github.com/joho/godotenv v1.5.1
 	github.com/markbates/goth v1.80.0
@@ -16,6 +17,7 @@ require (
 	github.com/qor5/admin/v3 v3.2.0
 	github.com/qor5/web/v3 v3.0.11
 	github.com/qor5/x/v3 v3.0.13
+	github.com/sunfmin/reflectutils v1.0.6
 	github.com/theplant/gofixtures v1.1.3
 	github.com/theplant/htmlgo v1.0.3
 	golang.org/x/text v0.23.0
@@ -25,11 +27,13 @@ require (
 
 require (
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
+	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/boombuler/barcode v1.0.2 // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/dlclark/regexp2 v1.11.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/go-asn1-ber/asn1-ber v1.5.7 // indirect
 	github.com/go-playground/form/v4 v4.2.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -56,7 +60,6 @@ require (
 	github.com/samber/lo v1.49.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
-	github.com/sunfmin/reflectutils v1.0.6 // indirect
 	github.com/theplant/inject v0.0.1 // indirect
 	github.com/theplant/osenv v0.0.2 // indirect
 	github.com/theplant/relay v0.3.1 // indirect
