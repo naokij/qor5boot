@@ -162,15 +162,22 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 
 	ed.Field("Password").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
 		//密码控件 - 回到最简单的实现方式
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
 		return v.VTextField().
 			Attr(web.VField(field.Name, "")...).
 			Label(field.Label).
 			Type("password").
-			Placeholder("输入密码").
+			Placeholder(msgr.PasswordPlaceholder).
+			Hint(msgr.PasswordMinLengthHint).
 			ErrorMessages(field.Errors...)
 	}).SetterFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) (err error) {
 		u := obj.(*models.User)
 		if v := ctx.R.FormValue(field.Name); v != "" {
+			// 验证密码长度至少为12位
+			if len(v) < 12 {
+				msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
+				return fmt.Errorf(msgr.PasswordMinLengthError)
+			}
 			u.Password = v
 			u.EncryptPassword()
 		}

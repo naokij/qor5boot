@@ -29,6 +29,9 @@ type Messages struct {
 	Status                         string
 	ChangePassword                 string
 	LoginSessions                  string
+	PasswordMinLengthHint          string
+	PasswordMinLengthError         string
+	PasswordPlaceholder            string
 }
 
 var Messages_en_US = &Messages{
@@ -54,6 +57,9 @@ var Messages_en_US = &Messages{
 	Status:                         "Status",
 	ChangePassword:                 "Change Password",
 	LoginSessions:                  "Login Sessions",
+	PasswordMinLengthHint:          "Password must be at least 12 characters long",
+	PasswordMinLengthError:         "Password must be at least 12 characters long",
+	PasswordPlaceholder:            "Enter password",
 }
 
 var Messages_zh_CN = &Messages{
@@ -79,6 +85,9 @@ var Messages_zh_CN = &Messages{
 	Status:                         "状态",
 	ChangePassword:                 "修改密码",
 	LoginSessions:                  "登录会话",
+	PasswordMinLengthHint:          "密码长度至少需要12位",
+	PasswordMinLengthError:         "密码长度至少需要12位",
+	PasswordPlaceholder:            "输入密码",
 }
 
 type Messages_ModelsI18nModuleKey struct {
