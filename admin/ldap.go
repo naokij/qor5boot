@@ -11,6 +11,60 @@ import (
 	"github.com/naokij/qor5boot/models"
 )
 
+/*
+LDAP认证逻辑说明：
+
+1. 配置初始化
+   - 从环境变量加载LDAP配置参数
+   - 包括服务器地址、端口、绑定DN、搜索基础等
+   - 支持TLS配置和证书验证
+
+2. 认证流程
+   a. 连接阶段
+      - 建立与LDAP服务器的TCP连接
+      - 如果配置了TLS，建立安全连接
+      - 使用服务账号或匿名绑定到LDAP服务器
+
+   b. 用户搜索
+      - 使用配置的搜索过滤器（默认使用mail属性）
+      - 在指定的搜索基础范围内查找用户
+      - 获取用户的DN和基本属性
+
+   c. 用户验证
+      - 使用用户提供的凭据尝试绑定
+      - 验证成功则返回true，失败返回false
+
+3. 错误处理
+   - 连接错误：返回连接错误
+   - 搜索错误：返回搜索错误
+   - 未找到用户：返回false
+   - 找到多个用户：返回false
+   - 绑定失败：返回false
+
+4. 日志记录
+   - 记录每个关键步骤的状态
+   - 记录错误信息和异常情况
+   - 记录用户属性和DN信息（用于调试）
+
+5. 安全考虑
+   - 支持TLS加密
+   - 支持证书验证
+   - 支持服务账号认证
+   - 密码验证通过LDAP服务器进行
+
+6. 配置项说明
+   - LDAP_ENABLED: 是否启用LDAP认证
+   - LDAP_SERVER: LDAP服务器地址
+   - LDAP_PORT: LDAP服务器端口
+   - LDAP_BIND_DN: 服务账号DN
+   - LDAP_BIND_PASSWORD: 服务账号密码
+   - LDAP_SEARCH_BASE: 搜索基础DN
+   - LDAP_SEARCH_FILTER: 用户搜索过滤器
+   - LDAP_USE_TLS: 是否使用TLS
+   - LDAP_SKIP_VERIFY: 是否跳过TLS证书验证
+   - LDAP_CERT_FILE: TLS证书文件路径
+*/
+
 // LDAP配置环境变量
 var (
 	// 基本配置
