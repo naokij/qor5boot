@@ -16,6 +16,9 @@ import (
 //go:embed assets/favicon.ico
 var favicon []byte
 
+//go:embed assets/logo.svg
+var logoSVG []byte
+
 func TestHandlerComplex(db *gorm.DB, u *models.User, enableWork bool) (http.Handler, Config) {
 	mux := http.NewServeMux()
 	c := NewConfig(db, enableWork)
@@ -61,6 +64,12 @@ func Router(db *gorm.DB) http.Handler {
 	mux.Handle("/", c.pb)
 	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		w.Write(favicon)
+		return
+	})
+
+	mux.HandleFunc("/admin/assets/logo.svg", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Write(logoSVG)
 		return
 	})
 

@@ -2,3 +2,4 @@
 qor5boot
 dev_env
 deploy/dev/hosts
+.DS_Store

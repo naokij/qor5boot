@@ -314,7 +314,7 @@ func configBrand(b *presets.Builder) {
 
 	b.BrandFunc(func(ctx *web.EventContext) h.HTMLComponent {
 		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
-		logo := "https://qor5.com/img/qor-logo.png"
+		logo := "/admin/assets/logo.svg"
 
 		now := time.Now()
 		nextEvenHour := time.Date(now.Year(), now.Month(), now.Day(), now.Hour()+1+(now.Hour()%2), 0, 0, 0, now.Location())
