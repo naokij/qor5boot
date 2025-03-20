@@ -5,7 +5,7 @@ import (
 	h "github.com/theplant/htmlgo"
 )
 
-func Dashboard() h.HTMLComponent {
+func DashboardBody() h.HTMLComponent {
 	return vuetify.VContainer(
 		h.H1("Welcome to the QOR5 demo site").Class("mt-8"),
 

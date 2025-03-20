@@ -32,6 +32,7 @@ type Messages struct {
 	PasswordMinLengthHint          string
 	PasswordMinLengthError         string
 	PasswordPlaceholder            string
+	Dashboard                      string
 }
 
 var Messages_en_US = &Messages{
@@ -60,6 +61,7 @@ var Messages_en_US = &Messages{
 	PasswordMinLengthHint:          "Password must be at least 12 characters long",
 	PasswordMinLengthError:         "Password must be at least 12 characters long",
 	PasswordPlaceholder:            "Enter password",
+	Dashboard:                      "Dashboard",
 }
 
 var Messages_zh_CN = &Messages{
@@ -88,12 +90,14 @@ var Messages_zh_CN = &Messages{
 	PasswordMinLengthHint:          "密码长度至少需要12位",
 	PasswordMinLengthError:         "密码长度至少需要12位",
 	PasswordPlaceholder:            "输入密码",
+	Dashboard:                      "仪表盘",
 }
 
 type Messages_ModelsI18nModuleKey struct {
 	QOR5Example string
 	Roles       string
 	Users       string
+	Dashboard   string
 
 	Posts          string
 	PostsID        string
@@ -263,6 +267,7 @@ var Messages_zh_CN_ModelsI18nModuleKey = &Messages_ModelsI18nModuleKey{
 	QOR5Example: "QOR5 示例",
 	Roles:       "权限管理",
 	Users:       "用户管理",
+	Dashboard:   "仪表盘",
 
 	PageBuilder:              "页面管理菜单",
 	Pages:                    "页面管理",

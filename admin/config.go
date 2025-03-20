@@ -158,6 +158,19 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 			// return supportedLanguages
 			return b.GetI18n().GetSupportLanguages()
 		})
+
+	// 添加Dashboard模型，放在最前面
+	type Dashboard struct{}
+	dashboardB := b.Model(&Dashboard{}).Label("Dashboard")
+	dashboardB.Listing().PageFunc(func(ctx *web.EventContext) (r web.PageResponse, err error) {
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
+		r.PageTitle = msgr.Dashboard
+		r.Body = DashboardBody()
+		return
+	})
+	// 添加图标
+	dashboardB.MenuIcon("mdi-view-dashboard")
+
 	mediab := media.New(db).AutoMigrate().Activity(ab).CurrentUserID(func(ctx *web.EventContext) (id uint) {
 		u := getCurrentUser(ctx.R)
 		if u == nil {
@@ -255,12 +268,10 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 }
 
 func configMenuOrder(b *presets.Builder) {
+	// 按照期望顺序配置菜单项
 	b.MenuOrder(
 		"profile",
-		// b.MenuGroup("Site Management").SubItems(
-		// 	"Setting",
-		// 	"QorSEOSetting",
-		// ).Icon("settings"),
+		"Dashboard", // 将Dashboard放在第二位置
 		b.MenuGroup("User Management").SubItems(
 			"User",
 			"Role",
@@ -384,8 +395,9 @@ func configBrand(b *presets.Builder) {
 			),
 		).Class("mb-n4 mt-n2")
 	}).HomePageFunc(func(ctx *web.EventContext) (r web.PageResponse, err error) {
-		r.PageTitle = "Home"
-		r.Body = Dashboard()
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
+		r.PageTitle = msgr.Dashboard
+		r.Body = DashboardBody()
 		return
 	}).NotFoundPageLayoutConfig(&presets.LayoutConfig{
 		NotificationCenterInvisible: true,
