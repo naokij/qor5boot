@@ -1,3 +1,10 @@
+// Package recurring 提供了一个完整的重复任务管理系统，支持定时任务的创建、调度、执行和监控。
+// 该系统基于 gocron 实现，提供了以下主要功能：
+// 1. 支持多种时间间隔的任务调度（秒、分钟、小时、天、周）
+// 2. 支持任务执行次数限制
+// 3. 支持任务的暂停、恢复和立即执行
+// 4. 提供任务执行历史记录和错误追踪
+// 5. 支持并发安全的任务管理
 package recurring
 
 import (
@@ -17,17 +24,35 @@ import (
 
 // 错误定义
 var (
-	ErrJobNotFound      = errors.New("找不到指定任务")
+	// ErrJobNotFound 表示找不到指定的任务
+	ErrJobNotFound = errors.New("找不到指定任务")
+	// ErrJobAlreadyExists 表示任务名称已存在
 	ErrJobAlreadyExists = errors.New("任务已存在")
-	ErrInvalidInterval  = errors.New("无效的时间间隔")
-	ErrInvalidUnit      = errors.New("无效的时间单位")
-	ErrInvalidFunction  = errors.New("无效的函数")
+	// ErrInvalidInterval 表示时间间隔无效
+	ErrInvalidInterval = errors.New("无效的时间间隔")
+	// ErrInvalidUnit 表示时间单位无效
+	ErrInvalidUnit = errors.New("无效的时间单位")
+	// ErrInvalidFunction 表示函数未注册
+	ErrInvalidFunction = errors.New("无效的函数")
 )
 
-// 注册的函数类型
+// JobFunc 定义了任务函数的类型签名
+// 参数说明：
+// - ctx: 任务执行的上下文，包含超时控制
+// - args: 任务参数，JSON格式的字节数组
+// - execution: 任务执行记录，用于记录执行状态和结果
 type JobFunc func(ctx context.Context, args []byte, execution *models.RecurringJobExecution) error
 
-// TaskManager 任务管理器
+// TaskManager 是任务管理器的核心结构体，负责所有任务的调度和执行
+// 字段说明：
+// - db: 数据库连接，用于持久化任务和执行记录
+// - scheduler: gocron调度器，负责任务的定时执行
+// - functions: 已注册的任务函数映射表
+// - jobs: 当前运行的任务映射表
+// - jobModels: 任务模型映射表
+// - mu: 并发锁，用于保证并发安全
+// - isRunning: 管理器运行状态标志
+// - defaultLogger: 默认日志记录器
 type TaskManager struct {
 	db            *gorm.DB
 	scheduler     *gocron.Scheduler
@@ -39,7 +64,11 @@ type TaskManager struct {
 	defaultLogger *log.Logger
 }
 
-// NewTaskManager 创建一个新的任务管理器
+// NewTaskManager 创建一个新的任务管理器实例
+// 参数：
+// - db: 数据库连接
+// 返回：
+// - *TaskManager: 新创建的任务管理器实例
 func NewTaskManager(db *gorm.DB) *TaskManager {
 	// 初始化gocron调度器
 	scheduler := gocron.NewScheduler(time.Local)
@@ -63,14 +92,19 @@ func NewTaskManager(db *gorm.DB) *TaskManager {
 	return manager
 }
 
-// RegisterFunction 注册一个可以被调度的函数
+// RegisterFunction 注册一个新的任务函数
+// 参数：
+// - name: 函数名称，用于在任务中引用
+// - fn: 任务函数实现
 func (m *TaskManager) RegisterFunction(name string, fn JobFunc) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.functions[name] = fn
 }
 
-// Start 启动任务管理器
+// Start 启动任务管理器，加载所有活动的任务并开始调度
+// 返回：
+// - error: 启动过程中的错误信息
 func (m *TaskManager) Start() error {
 	if m.isRunning {
 		return nil
@@ -98,7 +132,7 @@ func (m *TaskManager) Start() error {
 	return nil
 }
 
-// Stop 停止任务管理器
+// Stop 停止任务管理器，清理所有资源并等待任务完成
 func (m *TaskManager) Stop() {
 	if !m.isRunning {
 		return
@@ -127,6 +161,16 @@ func (m *TaskManager) Stop() {
 }
 
 // AddJob 添加一个新的重复任务
+// 参数：
+// - name: 任务名称
+// - functionName: 要执行的函数名称
+// - interval: 执行间隔
+// - unit: 时间单位（second/minute/hour/day/week）
+// - args: 任务参数
+// - times: 执行次数限制（0表示无限次）
+// 返回：
+// - *models.RecurringJob: 创建的任务对象
+// - error: 创建过程中的错误信息
 func (m *TaskManager) AddJob(name, functionName string, interval int, unit string, args interface{}, times int) (*models.RecurringJob, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -196,7 +240,11 @@ func (m *TaskManager) AddJob(name, functionName string, interval int, unit strin
 	return job, nil
 }
 
-// RemoveJob 移除指定任务
+// RemoveJob 移除指定的任务
+// 参数：
+// - name: 要移除的任务名称
+// 返回：
+// - error: 移除过程中的错误信息
 func (m *TaskManager) RemoveJob(name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -222,7 +270,11 @@ func (m *TaskManager) RemoveJob(name string) error {
 	return m.db.Delete(&job).Error
 }
 
-// PauseJob 暂停任务
+// PauseJob 暂停指定的任务
+// 参数：
+// - name: 要暂停的任务名称
+// 返回：
+// - error: 暂停过程中的错误信息
 func (m *TaskManager) PauseJob(name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -249,7 +301,11 @@ func (m *TaskManager) PauseJob(name string) error {
 	}).Error
 }
 
-// ResumeJob 恢复任务
+// ResumeJob 恢复已暂停的任务
+// 参数：
+// - name: 要恢复的任务名称
+// 返回：
+// - error: 恢复过程中的错误信息
 func (m *TaskManager) ResumeJob(name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -282,7 +338,12 @@ func (m *TaskManager) ResumeJob(name string) error {
 	return err
 }
 
-// GetJob 获取任务信息
+// GetJob 获取指定任务的详细信息
+// 参数：
+// - name: 任务名称
+// 返回：
+// - *models.RecurringJob: 任务对象
+// - error: 获取过程中的错误信息
 func (m *TaskManager) GetJob(name string) (*models.RecurringJob, error) {
 	var job models.RecurringJob
 	err := m.db.Where("name = ?", name).First(&job).Error
@@ -296,13 +357,20 @@ func (m *TaskManager) GetJob(name string) (*models.RecurringJob, error) {
 }
 
 // ListJobs 列出所有任务
+// 返回：
+// - []models.RecurringJob: 任务列表
+// - error: 获取过程中的错误信息
 func (m *TaskManager) ListJobs() ([]models.RecurringJob, error) {
 	var jobs []models.RecurringJob
 	err := m.db.Find(&jobs).Error
 	return jobs, err
 }
 
-// RunJobNow 立即执行一次任务
+// RunJobNow 立即执行一次指定的任务
+// 参数：
+// - name: 要执行的任务名称
+// 返回：
+// - error: 执行过程中的错误信息
 func (m *TaskManager) RunJobNow(name string) error {
 	var job models.RecurringJob
 	err := m.db.Where("name = ?", name).First(&job).Error
@@ -318,7 +386,12 @@ func (m *TaskManager) RunJobNow(name string) error {
 	return nil
 }
 
-// 调度任务
+// scheduleJob 内部方法，用于调度任务
+// 参数：
+// - job: 要调度的任务对象
+// 返回：
+// - *gocron.Job: 调度后的任务对象
+// - error: 调度过程中的错误信息
 func (m *TaskManager) scheduleJob(job *models.RecurringJob) (*gocron.Job, error) {
 	// 检查函数是否已注册
 	_, ok := m.functions[job.FunctionName]
@@ -374,7 +447,9 @@ func (m *TaskManager) scheduleJob(job *models.RecurringJob) (*gocron.Job, error)
 	return scheduledJob, nil
 }
 
-// 执行任务
+// executeJob 内部方法，用于执行任务
+// 参数：
+// - job: 要执行的任务对象
 func (m *TaskManager) executeJob(job *models.RecurringJob) {
 	// 锁定任务执行，防止并发问题
 	m.mu.Lock()
@@ -508,7 +583,13 @@ func (m *TaskManager) executeJob(job *models.RecurringJob) {
 	}
 }
 
-// 完成执行记录
+// finishExecution 内部方法，用于完成执行记录
+// 参数：
+// - db: 数据库连接
+// - execution: 执行记录对象
+// - success: 是否执行成功
+// - errorMsg: 错误信息
+// - output: 输出信息
 func finishExecution(db *gorm.DB, execution *models.RecurringJobExecution, success bool, errorMsg, output string) {
 	now := time.Now()
 	execution.FinishedAt = &now

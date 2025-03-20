@@ -31,6 +31,7 @@ func NewRecurringJobManager(db *gorm.DB, pb *presets.Builder) *RecurringJobManag
 	// 创建模型并设置标签，只在这里注册一次
 	modelBuilder := pb.Model(&models.RecurringJob{})
 	modelBuilder.Label("RecurringJobs")
+	modelBuilder.MenuIcon("mdi-clipboard-clock")
 
 	manager := &RecurringJobManager{
 		taskManager:  taskManager,
