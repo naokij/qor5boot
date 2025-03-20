@@ -10,11 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3control"
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
-	"github.com/qor/oss/s3"
 	"github.com/qor5/web/v3"
 	"github.com/qor5/x/v3/i18n"
 	"github.com/qor5/x/v3/login"
@@ -28,8 +25,6 @@ import (
 	"github.com/naokij/qor5boot/models"
 	"github.com/qor5/admin/v3/activity"
 	plogin "github.com/qor5/admin/v3/login"
-	"github.com/qor5/admin/v3/media"
-	media_oss "github.com/qor5/admin/v3/media/oss"
 	"github.com/qor5/admin/v3/presets"
 	"github.com/qor5/admin/v3/presets/gorm2op"
 	"github.com/qor5/admin/v3/role"
@@ -56,9 +51,6 @@ func (c *Config) GetLoginSessionBuilder() *plogin.SessionBuilder {
 }
 
 var (
-	s3Bucket                  = getEnvWithDefault("S3_Bucket", "example")
-	s3Region                  = getEnvWithDefault("S3_Region", "ap-northeast-1")
-	s3Endpoint                = getEnvWithDefault("S3_Endpoint", "https://s3.ap-northeast-1.amazonaws.com")
 	dbReset                   = getEnvWithDefault("DB_RESET", "")
 	resetAndImportInitialData = getEnvWithDefaultBool("RESET_AND_IMPORT_INITIAL_DATA", false)
 )
@@ -123,14 +115,6 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 	// ab.Model(l).SkipDelete().SkipCreate()
 	// @snippet_end
 
-	sess := session.Must(session.NewSession())
-	media_oss.Storage = s3.New(&s3.Config{
-		Bucket:   s3Bucket,
-		Region:   s3Region,
-		ACL:      s3control.S3CannedAccessControlListBucketOwnerFullControl,
-		Endpoint: s3Endpoint,
-		Session:  sess,
-	})
 	b := presets.New().DataOperator(gorm2op.DataOperator(db)).RightDrawerWidth("700")
 	defer b.Build()
 
@@ -171,30 +155,8 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 	// 添加图标
 	dashboardB.MenuIcon("mdi-view-dashboard")
 
-	mediab := media.New(db).AutoMigrate().Activity(ab).CurrentUserID(func(ctx *web.EventContext) (id uint) {
-		u := getCurrentUser(ctx.R)
-		if u == nil {
-			return
-		}
-		return u.ID
-	}).Searcher(func(db *gorm.DB, ctx *web.EventContext) *gorm.DB {
-		u := getCurrentUser(ctx.R)
-		if u == nil {
-			return db
-		}
-		if rs := u.GetRoles(); !slices.Contains(rs, models.RoleAdmin) && !slices.Contains(rs, models.RoleManager) {
-			return db.Where("user_id = ?", u.ID)
-		}
-		return db
-	})
-	defer func() {
-		mediab.GetPresetsModelBuilder().Use(ab)
-	}()
-
 	utils.Install(b)
 
-	// media_view.MediaLibraryPerPage = 3
-	// vips.UseVips(vips.Config{EnableGenerateWebp: true})
 	configMenuOrder(b)
 
 	roleBuilder := role.New(db).
@@ -225,20 +187,6 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 		b.Use(w.Activity(ab))
 	}
 
-	// Use m to customize the model, Or config more models here.
-
-	// type Setting struct{}
-	// sm := b.Model(&Setting{})
-	// sm.RegisterEventFunc(pages.LogInfoEvent, pages.LogInfo)
-	// sm.Listing().PageFunc(pages.Settings(db))
-
-	// FIXME: list editor does not support use in page func
-	// type ListEditorExample struct{}
-	// leem := b.Model(&ListEditorExample{}).Label("List Editor Example")
-	// pf, sf := pages.ListEditorExample(db, b)
-	// leem.Listing().PageFunc(pf)
-	// leem.RegisterEventFunc("save", sf)
-
 	loginSessionBuilder := initLoginSessionBuilder(db, b, ab)
 
 	configBrand(b)
@@ -247,7 +195,6 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 
 	configUser(b, ab, db, loginSessionBuilder)
 	b.Use(
-		mediab,
 		ab,
 		roleBuilder,
 		loginSessionBuilder,
