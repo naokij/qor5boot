@@ -13,7 +13,7 @@ import (
 )
 
 func initPermission(b *presets.Builder, db *gorm.DB) {
-	perm.Verbose = true
+	perm.Verbose = false
 	b.Permission(
 		perm.New().Policies(
 			perm.PolicyFor(perm.Anybody).WhoAre(perm.Allowed).ToDo(perm.Anything).On(perm.Anything),

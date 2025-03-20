@@ -4,10 +4,13 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"slices"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/iancoleman/strcase"
@@ -22,6 +25,7 @@ import (
 	"golang.org/x/text/language/display"
 	"gorm.io/gorm"
 
+	"github.com/naokij/qor5boot/admin/recurring"
 	"github.com/naokij/qor5boot/models"
 	"github.com/qor5/admin/v3/activity"
 	plogin "github.com/qor5/admin/v3/login"
@@ -35,6 +39,18 @@ import (
 
 //go:embed assets
 var assets embed.FS
+
+// 全局的重复任务管理器
+var recurringJobManager *recurring.RecurringJobManager
+
+// StopRecurringJobManager 停止重复任务管理器
+func StopRecurringJobManager() {
+	if recurringJobManager != nil {
+		log.Println("正在关闭全局重复任务管理器...")
+		recurringJobManager.Stop()
+		log.Println("全局重复任务管理器已关闭")
+	}
+}
 
 type Config struct {
 	pb                  *presets.Builder
@@ -185,6 +201,25 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 		defer w.Listen()
 		addJobs(w)
 		b.Use(w.Activity(ab))
+
+		// 添加重复任务支持
+		recurringJobManager = recurring.NewRecurringJobManager(db, b)
+		if err := recurringJobManager.Start(); err != nil {
+			log.Printf("启动重复任务管理器失败: %v", err)
+		}
+
+		// 程序退出时关闭管理器，但不立即关闭
+		// 这个方法不会阻塞，只会在程序收到信号时执行
+		go func() {
+			// 创建一个信号通道
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+			// 等待信号
+			<-c
+			log.Println("正在停止重复任务管理器...")
+			recurringJobManager.Stop()
+		}()
 	}
 
 	loginSessionBuilder := initLoginSessionBuilder(db, b, ab)

@@ -25,7 +25,7 @@ func ConnectDB() (db *gorm.DB) {
 		panic(err)
 	}
 
-	db.Logger = db.Logger.LogMode(logger.Info)
+	db.Logger = db.Logger.LogMode(logger.Warn)
 
 	return db
 }
