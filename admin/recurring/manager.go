@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
-	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/naokij/qor5boot/models"
@@ -28,12 +27,10 @@ var (
 	ErrJobNotFound = errors.New("找不到指定任务")
 	// ErrJobAlreadyExists 表示任务名称已存在
 	ErrJobAlreadyExists = errors.New("任务已存在")
-	// ErrInvalidInterval 表示时间间隔无效
-	ErrInvalidInterval = errors.New("无效的时间间隔")
-	// ErrInvalidUnit 表示时间单位无效
-	ErrInvalidUnit = errors.New("无效的时间单位")
 	// ErrInvalidFunction 表示函数未注册
 	ErrInvalidFunction = errors.New("无效的函数")
+	// ErrDuplicateName 表示任务名称已存在
+	ErrDuplicateName = errors.New("任务名称已存在")
 )
 
 // JobFunc 定义了任务函数的类型签名
@@ -164,52 +161,38 @@ func (m *TaskManager) Stop() {
 // 参数：
 // - name: 任务名称
 // - functionName: 要执行的函数名称
-// - interval: 执行间隔
-// - unit: 时间单位（second/minute/hour/day/week）
-// - args: 任务参数
-// - times: 执行次数限制（0表示无限次）
+// - args: 执行函数的参数
+// - times: 执行次数限制(0表示无限)
+// - cronExpression: Cron表达式
 // 返回：
 // - *models.RecurringJob: 创建的任务对象
 // - error: 创建过程中的错误信息
-func (m *TaskManager) AddJob(name, functionName string, interval int, unit string, args interface{}, times int) (*models.RecurringJob, error) {
+func (m *TaskManager) AddJob(name, functionName string, args interface{}, times int, cronExpression string) (*models.RecurringJob, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	// 检查名称是否已存在
+	var count int64
+	if err := m.db.Unscoped().Model(&models.RecurringJob{}).Where("name = ? AND deleted_at IS NULL", name).Count(&count).Error; err != nil {
+		return nil, err
+	}
+	if count > 0 {
+		return nil, ErrDuplicateName
+	}
 
 	// 检查函数是否已注册
 	if _, ok := m.functions[functionName]; !ok {
 		return nil, ErrInvalidFunction
 	}
 
-	// 检查任务名是否已存在
-	var count int64
-	m.db.Model(&models.RecurringJob{}).Where("name = ?", name).Count(&count)
-	if count > 0 {
-		return nil, ErrJobAlreadyExists
-	}
-
-	// 验证时间间隔
-	if interval <= 0 {
-		return nil, ErrInvalidInterval
-	}
-
-	// 验证时间单位
-	validUnits := map[string]bool{
-		"second": true, "minute": true, "hour": true, "day": true, "week": true,
-		"seconds": true, "minutes": true, "hours": true, "days": true, "weeks": true,
-	}
-	if !validUnits[unit] {
-		return nil, ErrInvalidUnit
-	}
-
-	// 创建任务记录
-	job := &models.RecurringJob{
-		Name:         name,
-		JobKey:       uuid.New().String(), // 生成唯一的任务键
-		FunctionName: functionName,
-		Interval:     interval,
-		Unit:         unit,
-		Times:        times,
-		Status:       "active",
+	// 创建任务对象
+	job := models.RecurringJob{
+		Name:           name,
+		JobKey:         fmt.Sprintf("%s_%d", name, time.Now().UnixNano()),
+		FunctionName:   functionName,
+		CronExpression: cronExpression,
+		Times:          times,
+		Status:         "active",
 	}
 
 	// 设置参数
@@ -218,26 +201,28 @@ func (m *TaskManager) AddJob(name, functionName string, interval int, unit strin
 	}
 
 	// 保存到数据库
-	if err := m.db.Create(job).Error; err != nil {
+	if err := m.db.Create(&job).Error; err != nil {
 		return nil, err
 	}
 
-	// 调度任务
-	scheduledJob, err := m.scheduleJob(job)
-	if err != nil {
-		// 如果调度失败，更新任务状态并返回错误
-		m.db.Model(job).Updates(map[string]interface{}{
-			"status":     "error",
-			"last_error": err.Error(),
-		})
-		return nil, err
+	// 如果任务管理器已启动，立即调度任务
+	if m.isRunning {
+		scheduledJob, err := m.scheduleJob(&job)
+		if err != nil {
+			// 调度失败，更新状态
+			m.db.Model(&job).Updates(map[string]interface{}{
+				"status":     "error",
+				"last_error": err.Error(),
+			})
+			return &job, err
+		}
+
+		// 获取下次执行时间
+		nextRun := scheduledJob.NextRun()
+		m.db.Model(&job).Update("next_run_at", nextRun)
 	}
 
-	// 记录下次执行时间
-	nextRun := scheduledJob.NextRun()
-	m.db.Model(job).Update("next_run_at", nextRun)
-
-	return job, nil
+	return &job, nil
 }
 
 // RemoveJob 移除指定的任务
@@ -266,8 +251,8 @@ func (m *TaskManager) RemoveJob(name string) error {
 		delete(m.jobModels, job.JobKey)
 	}
 
-	// 从数据库中软删除
-	return m.db.Delete(&job).Error
+	// 从数据库中真正物理删除（不是软删除）
+	return m.db.Unscoped().Delete(&job).Error
 }
 
 // PauseJob 暂停指定的任务
@@ -404,29 +389,16 @@ func (m *TaskManager) scheduleJob(job *models.RecurringJob) (*gocron.Job, error)
 		m.executeJob(job)
 	}
 
-	// 创建调度器
-	scheduler := m.scheduler.Every(job.Interval)
-
-	// 设置时间单位
-	switch job.Unit {
-	case "second", "seconds":
-		scheduler = scheduler.Second()
-	case "minute", "minutes":
-		scheduler = scheduler.Minute()
-	case "hour", "hours":
-		scheduler = scheduler.Hour()
-	case "day", "days":
-		scheduler = scheduler.Day()
-	case "week", "weeks":
-		scheduler = scheduler.Week()
-	default:
-		return nil, ErrInvalidUnit
+	// 始终使用Cron表达式调度
+	if job.CronExpression == "" {
+		return nil, fmt.Errorf("Cron表达式不能为空")
 	}
 
-	// 调度任务
-	scheduledJob, err := scheduler.Do(execFn)
+	// 使用Cron表达式调度
+	// 注意：使用标准5字段Cron表达式（分 时 日 月 周）
+	scheduledJob, err := m.scheduler.Cron(job.CronExpression).Do(execFn)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("无效的Cron表达式: %w", err)
 	}
 
 	// 设置执行次数限制 - 考虑已执行的次数
@@ -598,4 +570,87 @@ func finishExecution(db *gorm.DB, execution *models.RecurringJobExecution, succe
 	execution.Error = errorMsg
 	execution.Output = output
 	db.Save(execution)
+}
+
+// UpdateJob 更新现有任务的配置并重新调度，保留原有的统计信息和状态
+func (m *TaskManager) UpdateJob(jobID uint, name, functionName string, args interface{}, times int, cronExpression string, keepStatus bool) (*models.RecurringJob, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// 查找现有任务
+	var job models.RecurringJob
+	if err := m.db.First(&job, jobID).Error; err != nil {
+		return nil, err
+	}
+
+	// 如果任务名称改变了，需要检查新名称是否可用
+	if job.Name != name {
+		var count int64
+		if err := m.db.Unscoped().Model(&models.RecurringJob{}).Where("name = ? AND deleted_at IS NULL AND id != ?", name, jobID).Count(&count).Error; err != nil {
+			return nil, err
+		}
+		if count > 0 {
+			return nil, ErrDuplicateName
+		}
+	}
+
+	// 保存原有的统计信息和状态
+	originalStatus := job.Status
+	originalTimesRun := job.TimesRun
+	originalErrorCount := job.ErrorCount
+	originalLastError := job.LastError
+	originalLastRunAt := job.LastRunAt
+
+	// 从调度器中移除当前任务（如果存在）
+	if scheduledJob, exists := m.jobs[job.JobKey]; exists {
+		m.scheduler.RemoveByReference(scheduledJob)
+		delete(m.jobs, job.JobKey)
+		delete(m.jobModels, job.JobKey)
+	}
+
+	// 更新任务配置
+	job.Name = name
+	job.FunctionName = functionName
+	job.CronExpression = cronExpression
+	job.Times = times
+
+	// 如果不保持状态，且原状态是completed，则重置为active
+	if !keepStatus && originalStatus == "completed" {
+		job.Status = "active"
+	}
+
+	// 设置参数
+	if err := job.SetArgs(args); err != nil {
+		return nil, err
+	}
+
+	// 恢复原有的统计信息
+	job.TimesRun = originalTimesRun
+	job.ErrorCount = originalErrorCount
+	job.LastError = originalLastError
+	job.LastRunAt = originalLastRunAt
+
+	// 保存更新后的任务
+	if err := m.db.Save(&job).Error; err != nil {
+		return nil, err
+	}
+
+	// 如果任务状态是active，重新调度
+	if job.Status == "active" && m.isRunning {
+		scheduledJob, err := m.scheduleJob(&job)
+		if err != nil {
+			// 调度失败，更新状态
+			m.db.Model(&job).Updates(map[string]interface{}{
+				"status":     "error",
+				"last_error": err.Error(),
+			})
+			return &job, err
+		}
+
+		// 获取下次执行时间
+		nextRun := scheduledJob.NextRun()
+		m.db.Model(&job).Update("next_run_at", nextRun)
+	}
+
+	return &job, nil
 }

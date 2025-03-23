@@ -5,16 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/qor5/admin/v3/presets"
 	"github.com/qor5/web/v3"
 	v "github.com/qor5/x/v3/ui/vuetify"
+	vx "github.com/qor5/x/v3/ui/vuetifyx"
 	h "github.com/theplant/htmlgo"
 	"gorm.io/gorm"
 
 	"github.com/naokij/qor5boot/models"
+	"github.com/robfig/cron/v3"
 )
 
 // RecurringJobManager 处理重复任务的管理器
@@ -100,38 +103,111 @@ func (m *RecurringJobManager) registerSampleFunctions() {
 
 // 注册管理界面
 func (m *RecurringJobManager) registerAdminUI() {
-	// 配置列表视图 - 移除自定义的Actions列
-	m.modelBuilder.Listing("ID", "Name", "FunctionName", "Interval", "Runs", "Status", "LastRunAt", "NextRunAt", "ErrorCount", "Actions")
+	// 配置列表视图
+	m.modelBuilder.Listing("ID", "Name", "FunctionName", "CronExpression", "Runs", "Status", "LastRunAt", "NextRunAt", "ErrorCount", "Actions")
+
+	// 添加状态过滤功能
+	m.modelBuilder.Listing().FilterDataFunc(func(ctx *web.EventContext) vx.FilterData {
+		return []*vx.FilterItem{
+			{
+				Key:      "status",
+				Label:    "状态",
+				ItemType: vx.ItemTypeSelect,
+				Options: []*vx.SelectItem{
+					{Text: "活跃", Value: "active"},
+					{Text: "已暂停", Value: "paused"},
+					{Text: "已完成", Value: "completed"},
+					{Text: "错误", Value: "error"},
+				},
+				SQLCondition: `status %s ?`,
+			},
+		}
+	})
+
+	// 添加过滤标签页
+	m.modelBuilder.Listing().FilterTabsFunc(func(ctx *web.EventContext) []*presets.FilterTab {
+		return []*presets.FilterTab{
+			{
+				Label: "全部任务",
+				ID:    "all",
+				Query: url.Values{"all": []string{"1"}},
+			},
+			{
+				Label: "活跃任务",
+				ID:    "active",
+				Query: url.Values{"status": []string{"active"}},
+			},
+			{
+				Label: "已暂停",
+				ID:    "paused",
+				Query: url.Values{"status": []string{"paused"}},
+			},
+			{
+				Label: "已完成",
+				ID:    "completed",
+				Query: url.Values{"status": []string{"completed"}},
+			},
+			{
+				Label: "错误任务",
+				ID:    "error",
+				Query: url.Values{"status": []string{"error"}},
+			},
+		}
+	})
 
 	// 配置编辑视图
-	m.modelBuilder.Editing("Name", "FunctionName", "Interval", "Unit", "Times", "Args")
+	m.modelBuilder.Editing("Name", "FunctionName", "CronExpression", "Times", "Args")
 
-	// 为Interval字段创建显示组件(合并Interval和Unit)
-	m.modelBuilder.Listing().Field("Interval").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+	// 为CronExpression添加组件
+	m.modelBuilder.Editing().Field("CronExpression").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
 		job, ok := obj.(*models.RecurringJob)
 		if !ok {
 			return nil
 		}
 
-		// 根据单位类型生成对应的中文显示
-		unitText := ""
-		switch job.Unit {
-		case "second", "seconds":
-			unitText = "秒"
-		case "minute", "minutes":
-			unitText = "分钟"
-		case "hour", "hours":
-			unitText = "小时"
-		case "day", "days":
-			unitText = "天"
-		case "week", "weeks":
-			unitText = "周"
-		default:
-			unitText = job.Unit
+		// 准备Cron表达式示例
+		examples := []struct {
+			Expr string
+			Desc string
+		}{
+			{"0 0 * * *", "每天午夜执行"},
+			{"0 0 * * 1", "每周一午夜执行"},
+			{"0 8 * * 1-5", "每个工作日8点执行"},
+			{"0 0,12 * * *", "每天0点和12点执行"},
+			{"0 */4 * * *", "每4小时执行一次"},
+			{"*/10 * * * *", "每10分钟执行一次"},
+			{"0 0 1 * *", "每月1号午夜执行"},
 		}
 
-		// 生成间隔显示文本
-		return h.Td(h.Text(fmt.Sprintf("每 %d %s", job.Interval, unitText)))
+		exampleItems := []h.HTMLComponent{}
+		for _, e := range examples {
+			exampleItems = append(exampleItems,
+				h.Div(
+					h.Strong(e.Expr),
+					h.Text(" - "+e.Desc),
+				).Class("mb-1"),
+			)
+		}
+
+		return h.Div(
+			v.VTextField().
+				Label("Cron表达式").
+				Hint("例如: 0 0 * * * (每天午夜执行)").
+				Attr(web.VField("CronExpression", job.CronExpression)...),
+			h.Div(
+				h.Div().Text("常用Cron表达式示例:").Class("text-subtitle-2 mt-3"),
+				h.Div(exampleItems...),
+				h.Div(
+					h.A().Text("Cron表达式在线测试工具").
+						Href("https://crontab.guru/").
+						Target("_blank"),
+				).Class("mt-2"),
+				h.Div(
+					h.Text("Cron表达式格式（标准5字段）："),
+					h.Code("分 时 日 月 周"),
+				).Class("mt-2"),
+			).Class("text-caption mt-2"),
+		)
 	})
 
 	// 为Runs字段创建显示组件(合并Times和TimesRun)
@@ -170,29 +246,6 @@ func (m *RecurringJobManager) registerAdminUI() {
 			ItemTitle("text").
 			ItemValue("value").
 			Attr(web.VField("FunctionName", job.FunctionName)...)
-	})
-
-	// 为Unit字段创建选择器
-	m.modelBuilder.Editing().Field("Unit").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
-		job, ok := obj.(*models.RecurringJob)
-		if !ok {
-			return nil
-		}
-
-		options := []v.DefaultOptionItem{
-			{Text: "秒", Value: "second"},
-			{Text: "分钟", Value: "minute"},
-			{Text: "小时", Value: "hour"},
-			{Text: "天", Value: "day"},
-			{Text: "周", Value: "week"},
-		}
-
-		return v.VSelect().
-			Label("时间单位").
-			Items(options).
-			ItemTitle("text").
-			ItemValue("value").
-			Attr(web.VField("Unit", job.Unit)...)
 	})
 
 	// 为Actions字段创建操作按钮
@@ -256,11 +309,6 @@ func (m *RecurringJobManager) registerAdminUI() {
 		// 删除按钮已移除，将由ListingBuilder自动处理
 
 		return h.Td(h.Div(buttons...).Class("d-flex justify-center"))
-	})
-
-	// 添加事件处理
-	m.modelBuilder.RegisterEventFunc("listing", func(ctx *web.EventContext) (r web.EventResponse, err error) {
-		return
 	})
 
 	// 注册立即执行事件
@@ -364,17 +412,37 @@ func (m *RecurringJobManager) registerAdminUI() {
 		return
 	})
 
-	// 添加新任务处理
+	// 使用原地更新方法修改SaveFunc
 	m.modelBuilder.Editing().SaveFunc(func(obj interface{}, id string, ctx *web.EventContext) (err error) {
 		job, ok := obj.(*models.RecurringJob)
 		if !ok {
 			return fmt.Errorf("无效的任务对象")
 		}
 
+		// 添加详细日志以调试表单数据传递
+		log.Printf("==== 表单提交调试信息 ====")
+		log.Printf("表单所有数据: %+v", ctx.R.Form)
+		log.Printf("job初始状态: ID=%d, cronExpr=%s",
+			job.ID, job.CronExpression)
+
 		// 校验参数
-		if job.Name == "" || job.FunctionName == "" || job.Interval <= 0 {
-			return fmt.Errorf("名称、函数名和间隔都是必填项")
+		if job.Name == "" || job.FunctionName == "" {
+			return fmt.Errorf("名称和函数名是必填项")
 		}
+
+		if job.CronExpression == "" {
+			return fmt.Errorf("Cron表达式不能为空")
+		}
+
+		// 验证Cron表达式格式
+		parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+		if _, err := parser.Parse(job.CronExpression); err != nil {
+			return fmt.Errorf("Cron表达式格式无效: %v", err)
+		}
+
+		// 添加任务之前最终检查
+		log.Printf("任务最终状态: name=%s, cronExpr=%s",
+			job.Name, job.CronExpression)
 
 		// 添加任务
 		if id == "" {
@@ -394,24 +462,24 @@ func (m *RecurringJobManager) registerAdminUI() {
 				}
 			}
 
-			_, err := m.taskManager.AddJob(job.Name, job.FunctionName, job.Interval, job.Unit, args, job.Times)
+			_, err := m.taskManager.AddJob(
+				job.Name,
+				job.FunctionName,
+				args,
+				job.Times,
+				job.CronExpression,
+			)
 			if err != nil {
 				return err
 			}
 		} else {
-			// 更新现有任务
-			// 首先移除旧任务
-			existingJob, err := m.taskManager.GetJob(job.Name)
-			if err != nil {
-				return err
+			// 更新现有任务（使用原地更新逻辑）
+			var jobID uint64
+			if jobID, err = strconv.ParseUint(id, 10, 32); err != nil {
+				return fmt.Errorf("任务ID格式错误: %w", err)
 			}
 
-			err = m.taskManager.RemoveJob(job.Name)
-			if err != nil {
-				return err
-			}
-
-			// 然后添加新任务
+			// 准备参数
 			var args interface{}
 			if job.Args != "" {
 				if json.Valid([]byte(job.Args)) {
@@ -426,20 +494,21 @@ func (m *RecurringJobManager) registerAdminUI() {
 				}
 			}
 
-			_, err = m.taskManager.AddJob(job.Name, job.FunctionName, job.Interval, job.Unit, args, job.Times)
+			// 记录日志
+			log.Printf("原地更新任务 ID=%s, 新名称=%s", id, job.Name)
+
+			// 调用UpdateJob进行原地更新，保留原有状态和统计信息
+			_, err := m.taskManager.UpdateJob(
+				uint(jobID),
+				job.Name,
+				job.FunctionName,
+				args,
+				job.Times,
+				job.CronExpression,
+				true, // 总是保留原有状态和统计信息
+			)
 			if err != nil {
-				// 如果添加新任务失败，尝试恢复旧任务
-				if existingJob.Status == "active" {
-					m.taskManager.AddJob(
-						existingJob.Name,
-						existingJob.FunctionName,
-						existingJob.Interval,
-						existingJob.Unit,
-						existingJob.Args,
-						existingJob.Times,
-					)
-				}
-				return err
+				return fmt.Errorf("更新任务失败: %w", err)
 			}
 		}
 
