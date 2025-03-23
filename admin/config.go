@@ -258,8 +258,11 @@ func configMenuOrder(b *presets.Builder) {
 			"User",
 			"Role",
 		).Icon("mdi-account-multiple"),
-		"Worker",
-		"RecurringJobs", // 将重复任务放在操作日志前面
+		b.MenuGroup("TaskManagement").SubItems(
+			"Worker",
+			"RecurringJobs",
+			"RecurringJobExecutions",
+		).Icon("mdi-clock-outline"),
 		"ActivityLogs",
 	)
 }

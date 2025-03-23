@@ -33,6 +33,7 @@ type Messages struct {
 	PasswordMinLengthError         string
 	PasswordPlaceholder            string
 	Dashboard                      string
+	TaskManagement                 string
 }
 
 var Messages_en_US = &Messages{
@@ -49,8 +50,8 @@ var Messages_en_US = &Messages{
 	OAuthCompleteInfoPositionLabel: "Position(Optional)",
 	OAuthCompleteInfoAgreeLabel:    "Subscribe to QOR5 newsletter(Optional)",
 	OAuthCompleteInfoBackLabel:     "Back to login",
-	Demo:                           "DEMO",
-	DBResetTipLabel:                "Database reset countdown",
+	Demo:                           "Demonstration",
+	DBResetTipLabel:                "Database reset every even hour",
 	Name:                           "Name",
 	Email:                          "Email",
 	Company:                        "Company",
@@ -58,39 +59,41 @@ var Messages_en_US = &Messages{
 	Status:                         "Status",
 	ChangePassword:                 "Change Password",
 	LoginSessions:                  "Login Sessions",
-	PasswordMinLengthHint:          "Password must be at least 12 characters long",
-	PasswordMinLengthError:         "Password must be at least 12 characters long",
-	PasswordPlaceholder:            "Enter password",
+	PasswordMinLengthHint:          "Password must be at least 8 characters, include at least one uppercase letter, one lowercase letter, and one number.",
+	PasswordMinLengthError:         "Your password does not meet the minimum length requirement",
+	PasswordPlaceholder:            "Enter your password",
 	Dashboard:                      "Dashboard",
+	TaskManagement:                 "Task Management",
 }
 
 var Messages_zh_CN = &Messages{
 	FilterTabsAll:                  "全部",
-	FilterTabsHasUnreadNotes:       "未读备注",
-	FilterTabsActive:               "有效",
-	DemoTips:                       "请注意，数据库将每隔偶数小时重置一次。",
-	DemoUsernameLabel:              "演示账户：",
-	DemoPasswordLabel:              "演示密码：",
+	FilterTabsHasUnreadNotes:       "有未读通知",
+	FilterTabsActive:               "活跃",
+	DemoTips:                       "请注意，数据库将在每个偶数小时重置。",
+	DemoUsernameLabel:              "演示用户名: ",
+	DemoPasswordLabel:              "演示密码: ",
 	LoginProviderGoogleText:        "使用Google登录",
-	LoginProviderMicrosoftText:     "使用Microsoft登录",
+	LoginProviderMicrosoftText:     "使用微软登录",
 	LoginProviderGithubText:        "使用Github登录",
-	OAuthCompleteInfoTitle:         "请填写您的信息",
-	OAuthCompleteInfoPositionLabel: "职位（可选）",
-	OAuthCompleteInfoAgreeLabel:    "订阅QOR5新闻（可选）",
+	OAuthCompleteInfoTitle:         "完善您的信息",
+	OAuthCompleteInfoPositionLabel: "职位（选填）",
+	OAuthCompleteInfoAgreeLabel:    "订阅QOR5通讯（可选）",
 	OAuthCompleteInfoBackLabel:     "返回登录",
 	Demo:                           "演示",
-	DBResetTipLabel:                "数据库重置倒计时",
+	DBResetTipLabel:                "数据库每偶数小时重置一次",
 	Name:                           "姓名",
-	Email:                          "邮箱",
+	Email:                          "电子邮件",
 	Company:                        "公司",
 	Role:                           "角色",
 	Status:                         "状态",
 	ChangePassword:                 "修改密码",
 	LoginSessions:                  "登录会话",
-	PasswordMinLengthHint:          "密码长度至少需要12位",
-	PasswordMinLengthError:         "密码长度至少需要12位",
-	PasswordPlaceholder:            "输入密码",
+	PasswordMinLengthHint:          "密码长度至少为8个字符，至少包含一个大写字母、一个小写字母和一个数字。",
+	PasswordMinLengthError:         "密码不符合最小长度要求",
+	PasswordPlaceholder:            "请输入您的密码",
 	Dashboard:                      "仪表盘",
+	TaskManagement:                 "任务管理",
 }
 
 type Messages_ModelsI18nModuleKey struct {
@@ -135,7 +138,8 @@ type Messages_ModelsI18nModuleKey struct {
 	MicrositeModels          string
 	Workers                  string
 	RecurringJobs            string
-	RecurringJobExecutions   string
+	RecurringJobLogs         string
+	TaskManagement           string
 
 	PagesID         string
 	PagesTitle      string
@@ -292,7 +296,8 @@ var Messages_zh_CN_ModelsI18nModuleKey = &Messages_ModelsI18nModuleKey{
 	MicrositeModels:          "Microsite 示例",
 	Workers:                  "后台工作进程管理",
 	RecurringJobs:            "重复任务",
-	RecurringJobExecutions:   "重复任务执行",
+	RecurringJobLogs:         "重复任务日志",
+	TaskManagement:           "任务管理",
 
 	PagesID:         "ID",
 	PagesTitle:      "标题",

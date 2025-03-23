@@ -140,7 +140,7 @@ func (m *RecurringJobManager) registerSampleFunctions() {
 func (m *RecurringJobManager) registerExecutionUI() {
 	// 创建执行记录模型构建器
 	executionBuilder := m.pb.Model(&models.RecurringJobExecution{})
-	executionBuilder.Label("RecurringJobExecutions")
+	executionBuilder.Label("RecurringJobLogs")
 	executionBuilder.MenuIcon("mdi-history")
 
 	// 配置列表视图
