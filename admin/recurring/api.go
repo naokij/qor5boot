@@ -48,6 +48,9 @@ func NewRecurringJobManager(db *gorm.DB, pb *presets.Builder) *RecurringJobManag
 	// 注册管理界面
 	manager.registerAdminUI()
 
+	// 注册执行记录管理界面
+	manager.registerExecutionUI()
+
 	return manager
 }
 
@@ -101,6 +104,104 @@ func (m *RecurringJobManager) registerSampleFunctions() {
 	})
 }
 
+// 注册执行记录管理界面
+func (m *RecurringJobManager) registerExecutionUI() {
+	// 创建执行记录模型构建器
+	executionBuilder := m.pb.Model(&models.RecurringJobExecution{})
+	executionBuilder.Label("RecurringJobExecutions")
+	executionBuilder.MenuIcon("mdi-history")
+
+	// 配置列表视图
+	executionBuilder.Listing("ID", "RecurringJobID", "StartedAt", "Duration", "Success", "Error")
+
+	// 添加过滤功能
+	executionBuilder.Listing().FilterDataFunc(func(ctx *web.EventContext) vx.FilterData {
+		return []*vx.FilterItem{
+			{
+				Key:      "success",
+				Label:    "执行结果",
+				ItemType: vx.ItemTypeSelect,
+				Options: []*vx.SelectItem{
+					{Text: "成功", Value: "true"},
+					{Text: "失败", Value: "false"},
+				},
+				SQLCondition: `success %s ?`,
+			},
+		}
+	})
+
+	// 添加过滤标签页
+	executionBuilder.Listing().FilterTabsFunc(func(ctx *web.EventContext) []*presets.FilterTab {
+		return []*presets.FilterTab{
+			{
+				Label: "全部记录",
+				ID:    "all",
+				Query: url.Values{"all": []string{"1"}},
+			},
+			{
+				Label: "成功记录",
+				ID:    "success",
+				Query: url.Values{"success": []string{"true"}},
+			},
+			{
+				Label: "失败记录",
+				ID:    "error",
+				Query: url.Values{"success": []string{"false"}},
+			},
+		}
+	})
+
+	// 格式化持续时间显示
+	executionBuilder.Listing().Field("Duration").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		execution := obj.(*models.RecurringJobExecution)
+		duration := time.Duration(execution.Duration) * time.Millisecond
+		if duration < time.Second {
+			return h.Td(h.Text(fmt.Sprintf("%dms", execution.Duration)))
+		} else if duration < time.Minute {
+			return h.Td(h.Text(fmt.Sprintf("%.2fs", float64(execution.Duration)/1000)))
+		} else {
+			minutes := duration / time.Minute
+			seconds := (duration % time.Minute) / time.Second
+			return h.Td(h.Text(fmt.Sprintf("%d分%d秒", minutes, seconds)))
+		}
+	})
+
+	// 格式化成功/失败状态显示
+	executionBuilder.Listing().Field("Success").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		execution := obj.(*models.RecurringJobExecution)
+		var (
+			text  string
+			color string
+		)
+
+		if execution.Success {
+			text = "成功"
+			color = "success"
+		} else {
+			text = "失败"
+			color = "error"
+		}
+
+		return h.Td(v.VChip(h.Text(text)).Color(color))
+	})
+
+	// 关联任务名称显示
+	executionBuilder.Listing().Field("RecurringJobID").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		execution := obj.(*models.RecurringJobExecution)
+
+		// 查询关联的任务名称
+		var job models.RecurringJob
+		if err := m.taskManager.db.First(&job, execution.RecurringJobID).Error; err != nil {
+			return h.Td(h.Text(fmt.Sprintf("#%d", execution.RecurringJobID)))
+		}
+
+		return h.Td(h.A(h.Text(job.Name)).Attr("href", fmt.Sprintf("/admin/recurring_jobs/%d", job.ID)))
+	})
+
+	// 配置详情视图
+	executionBuilder.Detailing("RecurringJobID", "StartedAt", "FinishedAt", "Duration", "Success", "Error", "Output")
+}
+
 // 注册管理界面
 func (m *RecurringJobManager) registerAdminUI() {
 	// 配置列表视图
@@ -128,14 +229,14 @@ func (m *RecurringJobManager) registerAdminUI() {
 	m.modelBuilder.Listing().FilterTabsFunc(func(ctx *web.EventContext) []*presets.FilterTab {
 		return []*presets.FilterTab{
 			{
-				Label: "全部任务",
-				ID:    "all",
-				Query: url.Values{"all": []string{"1"}},
-			},
-			{
 				Label: "活跃任务",
 				ID:    "active",
 				Query: url.Values{"status": []string{"active"}},
+			},
+			{
+				Label: "全部任务",
+				ID:    "all",
+				Query: url.Values{"all": []string{"1"}},
 			},
 			{
 				Label: "已暂停",
@@ -530,4 +631,9 @@ func (m *RecurringJobManager) registerAdminUI() {
 
 		return m.taskManager.RemoveJob(fullJob.Name)
 	})
+}
+
+// 在RecurringJob详情页添加最近执行记录
+func (m *RecurringJobManager) registerExtraUI() {
+	// TODO: 在未来版本实现
 }

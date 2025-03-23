@@ -135,6 +135,7 @@ type Messages_ModelsI18nModuleKey struct {
 	MicrositeModels          string
 	Workers                  string
 	RecurringJobs            string
+	RecurringJobExecutions   string
 
 	PagesID         string
 	PagesTitle      string
@@ -291,6 +292,7 @@ var Messages_zh_CN_ModelsI18nModuleKey = &Messages_ModelsI18nModuleKey{
 	MicrositeModels:          "Microsite 示例",
 	Workers:                  "后台工作进程管理",
 	RecurringJobs:            "重复任务",
+	RecurringJobExecutions:   "重复任务执行",
 
 	PagesID:         "ID",
 	PagesTitle:      "标题",
