@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/qor5/admin/v3/presets"
@@ -19,6 +21,10 @@ import (
 	"github.com/naokij/qor5boot/models"
 	"github.com/robfig/cron/v3"
 )
+
+func init() {
+	// 初始化随机数种子（Go 1.20+ 已经不需要显式设置种子）
+}
 
 // RecurringJobManager 处理重复任务的管理器
 type RecurringJobManager struct {
@@ -77,7 +83,33 @@ func (m *RecurringJobManager) registerSampleFunctions() {
 			message = "执行定时日志任务"
 		}
 
-		log.Printf("[重复任务日志] %s", message)
+		// 记录开始信息
+		execution.Info("任务开始执行")
+
+		// 记录主要信息
+		execution.Info("执行日志任务: %s", message)
+
+		// 模拟一些处理步骤
+		time.Sleep(100 * time.Millisecond)
+		execution.Debug("执行步骤1: 准备数据")
+
+		time.Sleep(200 * time.Millisecond)
+		execution.Debug("执行步骤2: 处理数据")
+
+		// 示例警告信息
+		if len(message) > 100 {
+			execution.Warning("消息内容过长: %d 字符", len(message))
+		}
+
+		// 模拟随机错误（10%概率）
+		if rand.Intn(10) == 0 {
+			execution.LogError("随机错误发生")
+			return fmt.Errorf("随机错误")
+		}
+
+		// 记录完成信息
+		execution.Info("任务执行完成")
+
 		return nil
 	})
 
@@ -200,6 +232,76 @@ func (m *RecurringJobManager) registerExecutionUI() {
 
 	// 配置详情视图
 	executionBuilder.Detailing("RecurringJobID", "StartedAt", "FinishedAt", "Duration", "Success", "Error", "Output")
+
+	// 格式化输出字段的显示
+	executionBuilder.Detailing().Field("Output").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		execution := obj.(*models.RecurringJobExecution)
+
+		if execution.Output == "" {
+			return h.Div(h.Text("无输出内容")).Class("grey--text")
+		}
+
+		// 添加调试信息
+		debugInfo := h.Div().Class("mb-3").Children(
+			h.Div().Class("text-caption").Text("输出内容长度: " + strconv.Itoa(len(execution.Output))),
+		)
+
+		// 处理多行文本，按日志级别添加颜色
+		lines := strings.Split(execution.Output, "\n")
+		formattedLines := []h.HTMLComponent{}
+
+		for _, line := range lines {
+			// 设置不同日志级别的颜色样式
+			var colorClass string
+			var colorStyle string
+			var prefix string
+
+			if strings.Contains(line, "[INFO]") {
+				colorClass = "blue--text text--darken-3"
+				colorStyle = "color: #0D47A1 !important;" // 深蓝色
+				prefix = "ℹ️ "
+			} else if strings.Contains(line, "[WARN]") {
+				colorClass = "amber--text text--darken-4"
+				colorStyle = "color: #FF6F00 !important;" // 深橙色
+				prefix = "⚠️ "
+			} else if strings.Contains(line, "[ERROR]") {
+				colorClass = "red--text text--darken-4"
+				colorStyle = "color: #B71C1C !important;" // 深红色
+				prefix = "❌ "
+			} else if strings.Contains(line, "[DEBUG]") {
+				colorClass = "grey--text text--darken-2"
+				colorStyle = "color: #424242 !important;" // 深灰色
+				prefix = "🔍 "
+			} else {
+				colorStyle = "color: #000000;"
+			}
+
+			// 创建带颜色的日志行
+			logLine := h.Div().
+				Text(prefix+line).
+				Attr("style", colorStyle).
+				Class(colorClass + " log-line py-1")
+
+			formattedLines = append(formattedLines, logLine)
+		}
+
+		// 添加调试信息：显示第一行日志的完整内容
+		if len(lines) > 0 {
+			debugInfo.AppendChildren(
+				h.Div().Class("text-caption mt-1").Text("第一行日志: " + lines[0]),
+			)
+		}
+
+		// 用卡片容器包装所有日志行
+		return v.VCard(
+			v.VCardTitle(h.Text("执行输出日志")).Class("subtitle-1 py-2"),
+			debugInfo,
+			v.VDivider(),
+			v.VCardText(
+				formattedLines...,
+			).Class("pa-2"),
+		).Elevation(1).Class("log-container overflow-auto").Attr("style", "max-height: 500px; font-family: monospace;")
+	})
 }
 
 // 注册管理界面

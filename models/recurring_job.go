@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -61,4 +62,37 @@ type RecurringJobExecution struct {
 	Error          string     `gorm:"type:text" json:"error"`  // 错误信息
 	Output         string     `gorm:"type:text" json:"output"` // 输出信息
 	Duration       int64      `json:"duration"`                // 执行持续时间(毫秒)
+}
+
+// Info 记录一条信息级别的输出，自动添加时间戳
+func (e *RecurringJobExecution) Info(format string, args ...interface{}) {
+	e.logWithLevel("INFO", format, args...)
+}
+
+// Warning 记录一条警告级别的输出，自动添加时间戳
+func (e *RecurringJobExecution) Warning(format string, args ...interface{}) {
+	e.logWithLevel("WARN", format, args...)
+}
+
+// Error 记录一条错误级别的输出，自动添加时间戳
+func (e *RecurringJobExecution) LogError(format string, args ...interface{}) {
+	e.logWithLevel("ERROR", format, args...)
+}
+
+// Debug 记录一条调试级别的输出，自动添加时间戳
+func (e *RecurringJobExecution) Debug(format string, args ...interface{}) {
+	e.logWithLevel("DEBUG", format, args...)
+}
+
+// logWithLevel 内部方法，添加时间戳和日志级别
+func (e *RecurringJobExecution) logWithLevel(level, format string, args ...interface{}) {
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000")
+	message := fmt.Sprintf(format, args...)
+	// 使用清晰的格式，确保级别标记更加突出
+	logLine := fmt.Sprintf("[%s] [%s] %s", timestamp, level, message)
+
+	if e.Output != "" {
+		e.Output += "\n"
+	}
+	e.Output += logLine
 }
