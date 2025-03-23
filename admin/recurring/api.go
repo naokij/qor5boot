@@ -148,7 +148,29 @@ func (m *RecurringJobManager) registerExecutionUI() {
 
 	// 添加过滤功能
 	executionBuilder.Listing().FilterDataFunc(func(ctx *web.EventContext) vx.FilterData {
+		// 查询所有任务用于过滤器
+		var jobs []models.RecurringJob
+		if err := m.taskManager.db.Order("name").Find(&jobs).Error; err != nil {
+			log.Printf("获取任务列表失败: %v", err)
+		}
+
+		// 构建任务选项
+		jobOptions := []*vx.SelectItem{}
+		for _, job := range jobs {
+			jobOptions = append(jobOptions, &vx.SelectItem{
+				Text:  job.Name,
+				Value: fmt.Sprintf("%d", job.ID),
+			})
+		}
+
 		return []*vx.FilterItem{
+			{
+				Key:          "recurring_job_id",
+				Label:        "任务名称",
+				ItemType:     vx.ItemTypeSelect,
+				Options:      jobOptions,
+				SQLCondition: `recurring_job_id %s ?`,
+			},
 			{
 				Key:      "success",
 				Label:    "执行结果",
@@ -164,7 +186,12 @@ func (m *RecurringJobManager) registerExecutionUI() {
 
 	// 添加过滤标签页
 	executionBuilder.Listing().FilterTabsFunc(func(ctx *web.EventContext) []*presets.FilterTab {
-		return []*presets.FilterTab{
+		// 获取所有执行记录数量（可用于界面显示）
+		var allCount int64
+		m.taskManager.db.Model(&models.RecurringJobExecution{}).Count(&allCount)
+
+		// 基础标签页
+		tabs := []*presets.FilterTab{
 			{
 				Label: "全部记录",
 				ID:    "all",
@@ -181,6 +208,8 @@ func (m *RecurringJobManager) registerExecutionUI() {
 				Query: url.Values{"success": []string{"false"}},
 			},
 		}
+
+		return tabs
 	})
 
 	// 格式化持续时间显示
@@ -227,7 +256,9 @@ func (m *RecurringJobManager) registerExecutionUI() {
 			return h.Td(h.Text(fmt.Sprintf("#%d", execution.RecurringJobID)))
 		}
 
-		return h.Td(h.A(h.Text(job.Name)).Attr("href", fmt.Sprintf("/admin/recurring_jobs/%d", job.ID)))
+		// 使用过滤器链接而不是直接链接到任务详情
+		filterLink := fmt.Sprintf("/recurring-job-executions?f_recurring_job_id=%d", job.ID)
+		return h.Td(h.A(h.Text(job.Name)).Attr("href", filterLink))
 	})
 
 	// 配置详情视图
