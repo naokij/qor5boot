@@ -638,6 +638,15 @@ type Messages_ModelsI18nModuleKey struct {
 	ActivityActionExtendSession string
 
 	PagesPage string
+
+	User                  string
+	Role                  string
+	LoginSession          string
+	Dictionary            string
+	RecurringJob          string
+	RecurringJobExecution string
+	Worker                string
+	WorkerJob             string
 }
 
 var Messages_en_US_ModelsI18nModuleKey = &Messages_ModelsI18nModuleKey{
@@ -848,6 +857,15 @@ var Messages_en_US_ModelsI18nModuleKey = &Messages_ModelsI18nModuleKey{
 	ActivityActionExtendSession: "延长会话",
 
 	PagesPage: "Page",
+
+	User:                  "User",
+	Role:                  "Role",
+	LoginSession:          "Login Session",
+	Dictionary:            "Dictionary",
+	RecurringJob:          "Recurring Job",
+	RecurringJobExecution: "Recurring Job Execution",
+	Worker:                "Worker",
+	WorkerJob:             "Worker Job",
 }
 
 var Messages_zh_CN_ModelsI18nModuleKey = &Messages_ModelsI18nModuleKey{
@@ -1059,4 +1077,13 @@ var Messages_zh_CN_ModelsI18nModuleKey = &Messages_ModelsI18nModuleKey{
 	RecurringJobsResume: "恢复",
 	RecurringJobsRun:    "立即执行",
 	RecurringJobsDelete: "删除",
+
+	User:                  "用户",
+	Role:                  "角色",
+	LoginSession:          "登录会话",
+	Dictionary:            "字典",
+	RecurringJob:          "重复任务",
+	RecurringJobExecution: "重复任务执行",
+	Worker:                "后台工作",
+	WorkerJob:             "后台工作任务",
 }

@@ -204,7 +204,7 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 
 		// 添加重复任务支持
 		recurringJobManager = recurring.NewRecurringJobManager(db, b)
-		if err := recurringJobManager.Start(); err != nil {
+		if err := recurringJobManager.Init(ab); err != nil {
 			log.Printf("启动重复任务管理器失败: %v", err)
 		}
 

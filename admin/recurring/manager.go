@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
+	"github.com/qor5/admin/v3/activity"
+	"github.com/qor5/web/v3"
 	"gorm.io/gorm"
 
 	"github.com/naokij/qor5boot/models"
@@ -33,60 +35,49 @@ var (
 	ErrDuplicateName = errors.New("任务名称已存在")
 )
 
-// JobFunc 定义了任务函数的类型签名
-// 参数说明：
-// - ctx: 任务执行的上下文，包含超时控制
+// JobFunc 定义任务函数的签名
+// 参数：
+// - ctx: 上下文，可用于控制执行超时
 // - args: 任务参数，JSON格式的字节数组
-// - execution: 任务执行记录，用于记录执行状态和结果
+// - execution: 执行记录对象，可用于记录执行过程
+// 返回：
+// - error: 任务执行过程中的错误信息
 type JobFunc func(ctx context.Context, args []byte, execution *models.RecurringJobExecution) error
 
-// TaskManager 是任务管理器的核心结构体，负责所有任务的调度和执行
-// 字段说明：
-// - db: 数据库连接，用于持久化任务和执行记录
-// - scheduler: gocron调度器，负责任务的定时执行
-// - functions: 已注册的任务函数映射表
-// - jobs: 当前运行的任务映射表
-// - jobModels: 任务模型映射表
-// - mu: 并发锁，用于保证并发安全
-// - isRunning: 管理器运行状态标志
-// - defaultLogger: 默认日志记录器
+// TaskManager 管理定时任务的调度和执行
 type TaskManager struct {
-	db            *gorm.DB
-	scheduler     *gocron.Scheduler
-	functions     map[string]JobFunc
-	jobs          map[string]*gocron.Job
-	jobModels     map[string]*models.RecurringJob
-	mu            sync.RWMutex
-	isRunning     bool
-	defaultLogger *log.Logger
+	db              *gorm.DB
+	scheduler       *gocron.Scheduler
+	jobs            map[string]*gocron.Job
+	jobModels       map[string]*models.RecurringJob
+	functions       map[string]JobFunc
+	mu              sync.Mutex
+	isRunning       bool
+	defaultLogger   *log.Logger
+	activitySupport *activity.Builder // 用于记录操作日志
 }
 
-// NewTaskManager 创建一个新的任务管理器实例
+// NewTaskManager 创建一个新的任务管理器
 // 参数：
-// - db: 数据库连接
+// - db: 数据库连接对象
 // 返回：
-// - *TaskManager: 新创建的任务管理器实例
+// - *TaskManager: 任务管理器对象
 func NewTaskManager(db *gorm.DB) *TaskManager {
-	// 初始化gocron调度器
-	scheduler := gocron.NewScheduler(time.Local)
+	// 创建调度器，使用UTC时区
+	scheduler := gocron.NewScheduler(time.UTC)
 
-	// 创建任务管理器
-	manager := &TaskManager{
+	// 启动调度器
+	scheduler.StartAsync()
+
+	return &TaskManager{
 		db:            db,
 		scheduler:     scheduler,
-		functions:     make(map[string]JobFunc),
 		jobs:          make(map[string]*gocron.Job),
 		jobModels:     make(map[string]*models.RecurringJob),
+		functions:     make(map[string]JobFunc),
 		defaultLogger: log.Default(),
+		isRunning:     false,
 	}
-
-	// 自动迁移数据库模型
-	err := db.AutoMigrate(&models.RecurringJob{}, &models.RecurringJobExecution{})
-	if err != nil {
-		log.Printf("迁移重复任务模型失败: %v", err)
-	}
-
-	return manager
 }
 
 // RegisterFunction 注册一个新的任务函数
@@ -228,9 +219,10 @@ func (m *TaskManager) AddJob(name, functionName string, args interface{}, times 
 // RemoveJob 移除指定的任务
 // 参数：
 // - name: 要移除的任务名称
+// - ctx: 操作上下文，用于记录操作日志
 // 返回：
 // - error: 移除过程中的错误信息
-func (m *TaskManager) RemoveJob(name string) error {
+func (m *TaskManager) RemoveJob(name string, ctx ...*web.EventContext) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -251,6 +243,12 @@ func (m *TaskManager) RemoveJob(name string) error {
 		delete(m.jobModels, job.JobKey)
 	}
 
+	// 记录操作日志 - 在删除前记录
+	if m.activitySupport != nil && len(ctx) > 0 {
+		// 记录删除操作
+		m.activitySupport.Log(ctx[0].R.Context(), "deleted", &job, nil)
+	}
+
 	// 从数据库中真正物理删除（不是软删除）
 	return m.db.Unscoped().Delete(&job).Error
 }
@@ -258,9 +256,10 @@ func (m *TaskManager) RemoveJob(name string) error {
 // PauseJob 暂停指定的任务
 // 参数：
 // - name: 要暂停的任务名称
+// - ctx: 操作上下文，用于记录操作日志
 // 返回：
 // - error: 暂停过程中的错误信息
-func (m *TaskManager) PauseJob(name string) error {
+func (m *TaskManager) PauseJob(name string, ctx ...*web.EventContext) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -281,17 +280,26 @@ func (m *TaskManager) PauseJob(name string) error {
 	}
 
 	// 更新状态为暂停
-	return m.db.Model(&job).Updates(map[string]interface{}{
+	err = m.db.Model(&job).Updates(map[string]interface{}{
 		"status": "paused",
 	}).Error
+
+	// 记录操作日志
+	if err == nil && m.activitySupport != nil && len(ctx) > 0 {
+		// 记录暂停操作
+		m.activitySupport.Log(ctx[0].R.Context(), "paused", &job, nil)
+	}
+
+	return err
 }
 
 // ResumeJob 恢复已暂停的任务
 // 参数：
 // - name: 要恢复的任务名称
+// - ctx: 操作上下文，用于记录操作日志
 // 返回：
 // - error: 恢复过程中的错误信息
-func (m *TaskManager) ResumeJob(name string) error {
+func (m *TaskManager) ResumeJob(name string, ctx ...*web.EventContext) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -320,6 +328,13 @@ func (m *TaskManager) ResumeJob(name string) error {
 
 	// 重新调度任务
 	_, err = m.scheduleJob(&job)
+
+	// 记录操作日志
+	if err == nil && m.activitySupport != nil && len(ctx) > 0 {
+		// 记录恢复操作
+		m.activitySupport.Log(ctx[0].R.Context(), "resumed", &job, nil)
+	}
+
 	return err
 }
 
@@ -354,9 +369,10 @@ func (m *TaskManager) ListJobs() ([]models.RecurringJob, error) {
 // RunJobNow 立即执行一次指定的任务
 // 参数：
 // - name: 要执行的任务名称
+// - ctx: 操作上下文，用于记录操作日志
 // 返回：
 // - error: 执行过程中的错误信息
-func (m *TaskManager) RunJobNow(name string) error {
+func (m *TaskManager) RunJobNow(name string, ctx ...*web.EventContext) error {
 	var job models.RecurringJob
 	err := m.db.Where("name = ?", name).First(&job).Error
 	if err != nil {
@@ -364,6 +380,12 @@ func (m *TaskManager) RunJobNow(name string) error {
 			return ErrJobNotFound
 		}
 		return err
+	}
+
+	// 记录操作日志
+	if m.activitySupport != nil && len(ctx) > 0 {
+		// 记录执行操作
+		m.activitySupport.Log(ctx[0].R.Context(), "executed", &job, nil)
 	}
 
 	// 执行任务
@@ -653,4 +675,11 @@ func (m *TaskManager) UpdateJob(jobID uint, name, functionName string, args inte
 	}
 
 	return &job, nil
+}
+
+// SetActivitySupport 设置活动日志支持
+// 参数：
+// - ab: 活动构建器
+func (m *TaskManager) SetActivitySupport(ab *activity.Builder) {
+	m.activitySupport = ab
 }

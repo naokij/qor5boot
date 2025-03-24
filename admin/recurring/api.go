@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/qor5/admin/v3/activity"
 	"github.com/qor5/admin/v3/presets"
 	"github.com/qor5/web/v3"
 	v "github.com/qor5/x/v3/ui/vuetify"
@@ -31,21 +32,26 @@ type RecurringJobManager struct {
 	taskManager  *TaskManager
 	pb           *presets.Builder
 	modelBuilder *presets.ModelBuilder
+	db           *gorm.DB
 }
 
 // NewRecurringJobManager 创建重复任务管理器
-func NewRecurringJobManager(db *gorm.DB, pb *presets.Builder) *RecurringJobManager {
+func NewRecurringJobManager(db *gorm.DB, b *presets.Builder) *RecurringJobManager {
 	taskManager := NewTaskManager(db)
 
-	// 创建模型并设置标签，只在这里注册一次
-	modelBuilder := pb.Model(&models.RecurringJob{})
-	modelBuilder.Label("RecurringJobs")
+	// 创建模型并设置标签，确保URI名称正确
+	modelBuilder := b.Model(&models.RecurringJob{})
+	// 设置URI名称（保持英文，符合框架规范）
+	modelBuilder.URIName("recurring-jobs")
+	// 设置标签使用国际化键，而不是直接中文
+	modelBuilder.Label("RecurringJob")
 	modelBuilder.MenuIcon("mdi-clipboard-clock")
 
 	manager := &RecurringJobManager{
 		taskManager:  taskManager,
-		pb:           pb,
+		pb:           b,
 		modelBuilder: modelBuilder,
+		db:           db,
 	}
 
 	// 注册一些示例函数
@@ -58,6 +64,26 @@ func NewRecurringJobManager(db *gorm.DB, pb *presets.Builder) *RecurringJobManag
 	manager.registerExecutionUI()
 
 	return manager
+}
+
+// Init 初始化任务管理器
+// 参数：
+// - ab: activity构建器，用于记录操作日志
+func (m *RecurringJobManager) Init(ab *activity.Builder) error {
+	// 设置活动日志支持
+	if ab != nil {
+		m.taskManager.SetActivitySupport(ab)
+
+		// 注册RecurringJob模型到Activity支持
+		ab.RegisterModel(&models.RecurringJob{})
+	}
+
+	// 开始任务调度
+	if err := m.taskManager.Start(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Start 启动管理器
@@ -140,7 +166,7 @@ func (m *RecurringJobManager) registerSampleFunctions() {
 func (m *RecurringJobManager) registerExecutionUI() {
 	// 创建执行记录模型构建器
 	executionBuilder := m.pb.Model(&models.RecurringJobExecution{})
-	executionBuilder.Label("RecurringJobLogs")
+	executionBuilder.Label("RecurringJobExecution")
 	executionBuilder.MenuIcon("mdi-history")
 
 	// 配置列表视图
@@ -633,7 +659,7 @@ func (m *RecurringJobManager) registerAdminUI() {
 
 		var job models.RecurringJob
 		if err := m.taskManager.db.First(&job, id).Error; err == nil {
-			if err := m.taskManager.RunJobNow(job.Name); err != nil {
+			if err := m.taskManager.RunJobNow(job.Name, ctx); err != nil {
 				ctx.Flash = err.Error()
 			} else {
 				ctx.Flash = fmt.Sprintf("任务 %s 已加入执行队列", job.Name)
@@ -656,7 +682,7 @@ func (m *RecurringJobManager) registerAdminUI() {
 
 		var job models.RecurringJob
 		if err := m.taskManager.db.First(&job, id).Error; err == nil {
-			if err := m.taskManager.PauseJob(job.Name); err != nil {
+			if err := m.taskManager.PauseJob(job.Name, ctx); err != nil {
 				ctx.Flash = err.Error()
 			} else {
 				ctx.Flash = fmt.Sprintf("任务 %s 已暂停", job.Name)
@@ -679,7 +705,7 @@ func (m *RecurringJobManager) registerAdminUI() {
 
 		var job models.RecurringJob
 		if err := m.taskManager.db.First(&job, id).Error; err == nil {
-			if err := m.taskManager.ResumeJob(job.Name); err != nil {
+			if err := m.taskManager.ResumeJob(job.Name, ctx); err != nil {
 				ctx.Flash = err.Error()
 			} else {
 				ctx.Flash = fmt.Sprintf("任务 %s 已恢复", job.Name)
@@ -713,7 +739,7 @@ func (m *RecurringJobManager) registerAdminUI() {
 			return
 		}
 
-		if err = m.taskManager.RemoveJob(fullJob.Name); err != nil {
+		if err = m.taskManager.RemoveJob(fullJob.Name, ctx); err != nil {
 			ctx.Flash = "删除任务失败：" + err.Error()
 		} else {
 			ctx.Flash = "任务已成功删除"
@@ -773,7 +799,8 @@ func (m *RecurringJobManager) registerAdminUI() {
 				}
 			}
 
-			_, err := m.taskManager.AddJob(
+			// 先添加任务，获取任务ID
+			jobObj, err := m.taskManager.AddJob(
 				job.Name,
 				job.FunctionName,
 				args,
@@ -783,6 +810,13 @@ func (m *RecurringJobManager) registerAdminUI() {
 			if err != nil {
 				return err
 			}
+
+			// 在任务成功创建后记录操作日志
+			if m.taskManager.activitySupport != nil {
+				m.taskManager.activitySupport.Log(ctx.R.Context(), "created", jobObj, nil)
+			}
+
+			return nil
 		} else {
 			// 更新现有任务（使用原地更新逻辑）
 			var jobID uint64
@@ -809,7 +843,7 @@ func (m *RecurringJobManager) registerAdminUI() {
 			log.Printf("原地更新任务 ID=%s, 新名称=%s", id, job.Name)
 
 			// 调用UpdateJob进行原地更新，保留原有状态和统计信息
-			_, err := m.taskManager.UpdateJob(
+			updatedJob, err := m.taskManager.UpdateJob(
 				uint(jobID),
 				job.Name,
 				job.FunctionName,
@@ -821,9 +855,14 @@ func (m *RecurringJobManager) registerAdminUI() {
 			if err != nil {
 				return fmt.Errorf("更新任务失败: %w", err)
 			}
-		}
 
-		return nil
+			// 在任务成功更新后记录操作日志
+			if m.taskManager.activitySupport != nil {
+				m.taskManager.activitySupport.Log(ctx.R.Context(), "updated", updatedJob, nil)
+			}
+
+			return nil
+		}
 	})
 
 	// 添加删除处理
@@ -839,7 +878,12 @@ func (m *RecurringJobManager) registerAdminUI() {
 			return fmt.Errorf("找不到指定任务: %v", err)
 		}
 
-		return m.taskManager.RemoveJob(fullJob.Name)
+		// 直接使用活动日志记录删除操作
+		if m.taskManager.activitySupport != nil {
+			m.taskManager.activitySupport.Log(ctx.R.Context(), "deleted", &fullJob, nil)
+		}
+
+		return m.taskManager.RemoveJob(fullJob.Name, ctx)
 	})
 }
 

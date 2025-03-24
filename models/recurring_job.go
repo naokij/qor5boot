@@ -26,6 +26,11 @@ type RecurringJob struct {
 	LastError      string     `gorm:"type:text" json:"last_error"`      // 最后一次错误
 }
 
+// DisplayName 返回任务的显示名称，用于活动日志
+func (r *RecurringJob) DisplayName() string {
+	return r.Name
+}
+
 // SetArgs 设置任务参数
 func (r *RecurringJob) SetArgs(args interface{}) error {
 	if args == nil {
@@ -62,6 +67,11 @@ type RecurringJobExecution struct {
 	Error          string     `gorm:"type:text" json:"error"`  // 错误信息
 	Output         string     `gorm:"type:text" json:"output"` // 输出信息
 	Duration       int64      `json:"duration"`                // 执行持续时间(毫秒)
+}
+
+// DisplayName 返回执行记录的显示名称，用于活动日志
+func (e *RecurringJobExecution) DisplayName() string {
+	return fmt.Sprintf("执行记录 #%d", e.ID)
 }
 
 // Info 记录一条信息级别的输出，自动添加时间戳
