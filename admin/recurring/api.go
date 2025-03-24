@@ -190,6 +190,7 @@ func (m *RecurringJobManager) registerExecutionUI() {
 		var allCount int64
 		m.taskManager.db.Model(&models.RecurringJobExecution{}).Count(&allCount)
 
+		// TODO: 将来重构国际化实现，目前存在import循环依赖问题
 		// 基础标签页
 		tabs := []*presets.FilterTab{
 			{
@@ -360,6 +361,7 @@ func (m *RecurringJobManager) registerAdminUI() {
 
 	// 添加过滤标签页
 	m.modelBuilder.Listing().FilterTabsFunc(func(ctx *web.EventContext) []*presets.FilterTab {
+		// TODO: 将来重构国际化实现，目前存在import循环依赖问题
 		return []*presets.FilterTab{
 			{
 				Label: "活跃任务",
@@ -460,6 +462,53 @@ func (m *RecurringJobManager) registerAdminUI() {
 		}
 	})
 
+	// 为Status字段添加翻译组件
+	m.modelBuilder.Listing().Field("Status").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		job, ok := obj.(*models.RecurringJob)
+		if !ok {
+			return nil
+		}
+
+		var (
+			text  string
+			color string
+		)
+
+		switch job.Status {
+		case "active":
+			text = "活跃"
+			color = "success"
+		case "paused":
+			text = "已暂停"
+			color = "warning"
+		case "completed":
+			text = "已完成"
+			color = "info"
+		case "error":
+			text = "错误"
+			color = "error"
+		default:
+			text = job.Status
+			color = ""
+		}
+
+		return h.Td(v.VChip(h.Text(text)).Color(color))
+	})
+
+	// 为LastRunAt字段添加处理nil值的组件
+	m.modelBuilder.Listing().Field("LastRunAt").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		job, ok := obj.(*models.RecurringJob)
+		if !ok {
+			return nil
+		}
+
+		if job.LastRunAt == nil {
+			return h.Td(h.Text("--"))
+		}
+
+		return h.Td(h.Text(job.LastRunAt.Format("2006-01-02 15:04:05")))
+	})
+
 	// 为FunctionName字段创建选择器
 	m.modelBuilder.Editing().Field("FunctionName").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
 		job, ok := obj.(*models.RecurringJob)
@@ -475,11 +524,39 @@ func (m *RecurringJobManager) registerAdminUI() {
 		}
 
 		return v.VSelect().
-			Label("函数名").
+			Label("函数名称").
 			Items(options).
 			ItemTitle("text").
 			ItemValue("value").
 			Attr(web.VField("FunctionName", job.FunctionName)...)
+	})
+
+	// 为Times字段添加标签翻译
+	m.modelBuilder.Editing().Field("Times").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		job, ok := obj.(*models.RecurringJob)
+		if !ok {
+			return nil
+		}
+
+		return v.VTextField().
+			Type("number").
+			Label("执行次数限制").
+			Hint("0表示无限制").
+			Attr(web.VField("Times", fmt.Sprintf("%d", job.Times))...)
+	})
+
+	// 为Args字段添加标签翻译
+	m.modelBuilder.Editing().Field("Args").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		job, ok := obj.(*models.RecurringJob)
+		if !ok {
+			return nil
+		}
+
+		return v.VTextarea().
+			Label("参数").
+			Hint("JSON格式的参数，如果不需要参数可留空").
+			Rows(5).
+			Attr(web.VField("Args", job.Args)...)
 	})
 
 	// 为Actions字段创建操作按钮
