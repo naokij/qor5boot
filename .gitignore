@@ -1,5 +1,6 @@
 /vendor/*
-qor5boot
+/qor5boot
+/newboot
 dev_env
 deploy/dev/hosts
 .DS_Store

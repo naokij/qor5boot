@@ -36,6 +36,7 @@ type Messages struct {
 	DBResetTipLabel   string
 
 	// 登录相关
+	LoginTitleLabel                string
 	LoginProviderGoogleText        string
 	LoginProviderMicrosoftText     string
 	LoginProviderGithubText        string
@@ -177,6 +178,7 @@ var Messages_en_US = &Messages{
 	DBResetTipLabel:   "DB Reset Tip",
 
 	// 登录相关
+	LoginTitleLabel:                "Qor5boot Management System",
 	LoginProviderGoogleText:        "Login with Google",
 	LoginProviderMicrosoftText:     "Login with Microsoft",
 	LoginProviderGithubText:        "Login with GitHub",
@@ -318,6 +320,7 @@ var Messages_zh_CN = &Messages{
 	DBResetTipLabel:   "DB重置提示",
 
 	// 登录相关
+	LoginTitleLabel:                "Qor5boot 管理系统",
 	LoginProviderGoogleText:        "使用Google登录",
 	LoginProviderMicrosoftText:     "使用Microsoft登录",
 	LoginProviderGithubText:        "使用GitHub登录",

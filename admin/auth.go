@@ -1,6 +1,7 @@
 package admin
 
 import (
+	_ "embed"
 	"errors"
 	"net/http"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/qor5/admin/v3/presets"
 	"github.com/qor5/admin/v3/role"
 	"github.com/qor5/web/v3"
+	"github.com/qor5/x/v3/i18n"
 	"github.com/qor5/x/v3/login"
 	. "github.com/theplant/htmlgo"
 	"gorm.io/gorm"
@@ -143,15 +145,33 @@ func initLoginSessionBuilder(db *gorm.DB, pb *presets.Builder, ab *activity.Buil
 				return nil
 			}
 		}).TOTP(false).MaxRetryCount(0)
+
 	loginBuilder.LoginPageFunc(plogin.NewAdvancedLoginPage(func(ctx *web.EventContext, config *plogin.AdvancedLoginPageConfig) (*plogin.AdvancedLoginPageConfig, error) {
-		// config.BrandLogo = RawHTML(
-		// 	`<svg width="61" height="27" viewBox="0 0 61 27" fill="none" xmlns="http://www.w3.org/2000/svg">
-		// 		<path fill-rule="evenodd" clip-rule="evenodd" d="M40.6667 0H61V20.25H40.6667V0ZM47.4445 6.75H54.2222V13.5H47.4445V6.75ZM47.4445 13.5V20.25H54.2222L47.4445 13.5Z" fill="#17A2F5"/>
-		// 		<path d="M33.889 6.75041H27.1112V13.5004H33.889V6.75041Z" fill="#17A2F5"/>
-		// 		<path fill-rule="evenodd" clip-rule="evenodd" d="M0 0H20.3332V20.25L0 20.25V0ZM6.77777 6.75H13.5555V13.5H6.77777V6.75ZM20.3333 27L20.3332 20.25L13.5555 20.25L20.3333 27Z" fill="#17A2F5"/>
-		// 	</svg>
-		// 	`,
-		// )
+		// 从自定义消息中获取登录标题
+		adminMsg := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
+		config.TitleLabel = adminMsg.LoginTitleLabel
+		config.PageTitle = adminMsg.LoginTitleLabel
+
+		config.BrandLogo = RawHTML(string(LoginLogoSVG))
+
+		// 只使用CSS隐藏并替换原始SVG
+		ctx.Injector.HeadHTML(`
+		<style>
+			/* 完全隐藏原始的SVG */
+			.v-row .hidden-md-and-down .position-absolute svg {
+				display: none !important;
+			}
+			/* 在父容器添加我们的SVG作为背景 */
+			.v-row .hidden-md-and-down .position-absolute {
+				background-image: url('/admin/assets/login_logo.svg');
+				background-repeat: no-repeat;
+				background-size: contain;
+				width: 61px;
+				height: 27px;
+			}
+		</style>
+		`)
+
 		return config, nil
 	})(loginBuilder.ViewHelper(), pb))
 

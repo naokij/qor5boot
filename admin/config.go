@@ -91,6 +91,8 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 		&models.User{},
 		&role.Role{},
 		&perm.DefaultDBPolicy{},
+		&models.RecurringJob{},
+		&models.RecurringJobExecution{},
 	); err != nil {
 		panic(err)
 	}
