@@ -35,7 +35,7 @@ require (
 	github.com/go-co-op/gocron v1.37.0
 	github.com/go-playground/form/v4 v4.2.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
-	github.com/google/uuid v1.6.0
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/gorilla/sessions v1.4.0 // indirect
@@ -56,7 +56,7 @@ require (
 	github.com/ory/pagination v0.0.1 // indirect
 	github.com/pquerna/otp v1.4.0 // indirect
 	github.com/qor/oss v0.0.0-20240729105053-88484a799a79 // indirect
-	github.com/robfig/cron/v3 v3.0.1 // indirect
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/samber/lo v1.49.1 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect
