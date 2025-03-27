@@ -820,7 +820,7 @@ func (m *RecurringJobManager) registerAdminUI() {
 
 			// 在任务成功创建后记录操作日志
 			if m.taskManager.activitySupport != nil {
-				m.taskManager.activitySupport.Log(ctx.R.Context(), "created", jobObj, nil)
+				m.taskManager.activitySupport.OnCreate(ctx.R.Context(), jobObj)
 			}
 
 			return nil
@@ -829,6 +829,12 @@ func (m *RecurringJobManager) registerAdminUI() {
 			var jobID uint64
 			if jobID, err = strconv.ParseUint(id, 10, 32); err != nil {
 				return fmt.Errorf("任务ID格式错误: %w", err)
+			}
+
+			// 获取原始任务记录，用于后面记录差异
+			var originalJob models.RecurringJob
+			if err := m.taskManager.db.First(&originalJob, uint(jobID)).Error; err != nil {
+				return fmt.Errorf("获取原任务信息失败: %w", err)
 			}
 
 			// 准备参数
@@ -863,9 +869,9 @@ func (m *RecurringJobManager) registerAdminUI() {
 				return fmt.Errorf("更新任务失败: %w", err)
 			}
 
-			// 在任务成功更新后记录操作日志
+			// 在任务成功更新后记录操作日志，传入原任务作为old参数，记录变更差异
 			if m.taskManager.activitySupport != nil {
-				m.taskManager.activitySupport.Log(ctx.R.Context(), "updated", updatedJob, nil)
+				m.taskManager.activitySupport.OnEdit(ctx.R.Context(), &originalJob, updatedJob)
 			}
 
 			return nil
@@ -887,7 +893,7 @@ func (m *RecurringJobManager) registerAdminUI() {
 
 		// 直接使用活动日志记录删除操作
 		if m.taskManager.activitySupport != nil {
-			m.taskManager.activitySupport.Log(ctx.R.Context(), "deleted", &fullJob, nil)
+			m.taskManager.activitySupport.OnDelete(ctx.R.Context(), &fullJob)
 		}
 
 		return m.taskManager.RemoveJob(fullJob.Name, ctx)

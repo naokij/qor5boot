@@ -245,8 +245,8 @@ func (m *TaskManager) RemoveJob(name string, ctx ...*web.EventContext) error {
 
 	// 记录操作日志 - 在删除前记录
 	if m.activitySupport != nil && len(ctx) > 0 {
-		// 记录删除操作
-		m.activitySupport.Log(ctx[0].R.Context(), "deleted", &job, nil)
+		// 记录删除操作，不需要old参数，因为删除后对象将不存在
+		m.activitySupport.OnDelete(ctx[0].R.Context(), &job)
 	}
 
 	// 从数据库中真正物理删除（不是软删除）
@@ -273,6 +273,9 @@ func (m *TaskManager) PauseJob(name string, ctx ...*web.EventContext) error {
 		return err
 	}
 
+	// 保存更新前的任务状态，用于记录差异
+	originalJob := job
+
 	// 从调度器中移除任务
 	if scheduledJob, exists := m.jobs[job.JobKey]; exists {
 		m.scheduler.RemoveByReference(scheduledJob)
@@ -286,8 +289,8 @@ func (m *TaskManager) PauseJob(name string, ctx ...*web.EventContext) error {
 
 	// 记录操作日志
 	if err == nil && m.activitySupport != nil && len(ctx) > 0 {
-		// 记录暂停操作
-		m.activitySupport.Log(ctx[0].R.Context(), "paused", &job, nil)
+		// 记录暂停操作（相当于编辑操作，状态从active变为paused）
+		m.activitySupport.OnEdit(ctx[0].R.Context(), &originalJob, &job)
 	}
 
 	return err
@@ -313,6 +316,9 @@ func (m *TaskManager) ResumeJob(name string, ctx ...*web.EventContext) error {
 		return err
 	}
 
+	// 保存更新前的任务状态，用于记录差异
+	originalJob := job
+
 	// 如果任务不是暂停状态，返回错误
 	if job.Status != "paused" {
 		return errors.New("只能恢复处于暂停状态的任务")
@@ -331,8 +337,8 @@ func (m *TaskManager) ResumeJob(name string, ctx ...*web.EventContext) error {
 
 	// 记录操作日志
 	if err == nil && m.activitySupport != nil && len(ctx) > 0 {
-		// 记录恢复操作
-		m.activitySupport.Log(ctx[0].R.Context(), "resumed", &job, nil)
+		// 记录恢复操作（相当于编辑操作，状态从paused变为active）
+		m.activitySupport.OnEdit(ctx[0].R.Context(), &originalJob, &job)
 	}
 
 	return err
@@ -382,10 +388,13 @@ func (m *TaskManager) RunJobNow(name string, ctx ...*web.EventContext) error {
 		return err
 	}
 
+	// 保存当前状态用于记录差异
+	originalJob := job
+
 	// 记录操作日志
 	if m.activitySupport != nil && len(ctx) > 0 {
-		// 记录执行操作
-		m.activitySupport.Log(ctx[0].R.Context(), "executed", &job, nil)
+		// 记录执行操作 - 虽然本质上不是编辑操作，但为了记录差异，也使用OnEdit
+		m.activitySupport.OnEdit(ctx[0].R.Context(), &originalJob, &job)
 	}
 
 	// 执行任务
