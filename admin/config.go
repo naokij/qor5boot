@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
@@ -357,29 +356,10 @@ func configBrand(b *presets.Builder) {
 		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
 		logo := "/admin/assets/logo.svg"
 		b.BrandTitle(msgr.SidebarTitle)
-		now := time.Now()
-		nextEvenHour := time.Date(now.Year(), now.Month(), now.Day(), now.Hour()+1+(now.Hour()%2), 0, 0, 0, now.Location())
-		diff := int(nextEvenHour.Sub(now).Seconds())
-		hours := diff / 3600
-		minutes := (diff % 3600) / 60
-		seconds := diff % 60
-		countdown := fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
 
 		return h.Div(
 			v.VRow(
 				v.VCol(h.A(h.Img(logo).Attr("width", "80")).Href("/")),
-				v.VCol(h.H1(msgr.Demo)).Class("pt-4"),
-			),
-			// ).Density(DensityCompact),
-			h.If(dbReset != "",
-				h.Div(
-					h.Span(msgr.DBResetTipLabel),
-					v.VIcon("schedule").Size(v.SizeXSmall),
-					// .Left(true),
-					h.Span(countdown).Id("countdown"),
-				).Class("pt-1 pb-2"),
-				v.VDivider(),
-				h.Script("function updateCountdown(){const now=new Date();const nextEvenHour=new Date(now);nextEvenHour.setHours(nextEvenHour.getHours()+(nextEvenHour.getHours()%2===0?2:1),0,0,0);const timeLeft=nextEvenHour-now;const hours=Math.floor(timeLeft/(60*60*1000));const minutes=Math.floor((timeLeft%(60*60*1000))/(60*1000));const seconds=Math.floor((timeLeft%(60*1000))/1000);const countdownElem=document.getElementById(\"countdown\");countdownElem.innerText=`${hours.toString().padStart(2,\"0\")}:${minutes.toString().padStart(2,\"0\")}:${seconds.toString().padStart(2,\"0\")}`}updateCountdown();setInterval(updateCountdown,1000);"),
 			),
 		).Class("mb-n4 mt-n2")
 	}).HomePageFunc(func(ctx *web.EventContext) (r web.PageResponse, err error) {
