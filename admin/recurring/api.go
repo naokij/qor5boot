@@ -169,6 +169,13 @@ func (m *RecurringJobManager) registerExecutionUI() {
 	executionBuilder.Label("RecurringJobExecution")
 	executionBuilder.MenuIcon("mdi-history")
 
+	// 显式设置URI名称，确保与权限配置匹配
+	executionBuilder.URIName("recurring-job-executions")
+
+	// 不提供创建和编辑界面
+	// 权限已在 admin/perm.go 中通过以下方式禁用:
+	// perm.PolicyFor(perm.Anybody).WhoAre(perm.Denied).ToDo(presets.PermCreate).On("*:recurring-job-executions", "*:recurring-job-executions:*"),
+
 	// 配置列表视图
 	executionBuilder.Listing("ID", "RecurringJobID", "StartedAt", "Duration", "Success", "Error")
 

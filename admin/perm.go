@@ -23,6 +23,7 @@ func initPermission(b *presets.Builder, db *gorm.DB) {
 				models.RoleManager,
 			).WhoAre(perm.Denied).ToDo(presets.PermCreate, presets.PermUpdate, presets.PermDelete).On("*:roles:*", "*:users:*"),
 			perm.PolicyFor(models.RoleViewer).WhoAre(perm.Denied).ToDo(presets.PermCreate, presets.PermUpdate, presets.PermDelete).On(perm.Anything),
+			perm.PolicyFor(perm.Anybody).WhoAre(perm.Denied).ToDo(presets.PermCreate).On(":presets:recurring_job_executions:", ":presets:recurring_job_executions:*"),
 			perm.PolicyFor(models.RoleManager).WhoAre(perm.Denied).ToDo(perm.Anything).
 				On("*:activity_logs").On("*:activity_logs:*").
 				Given(perm.Conditions{

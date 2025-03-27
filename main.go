@@ -38,7 +38,7 @@ func main() {
 	host := os.Getenv("HOST")
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "9000"
+		port = "9500"
 	}
 	addr := host + ":" + port
 
