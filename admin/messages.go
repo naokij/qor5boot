@@ -92,43 +92,63 @@ type Messages struct {
 	UserActivities              string
 
 	// User Admin
-	Role            string
-	Roles           string
-	RoleName        string
-	EnName          string
-	EnPermissions   string
-	AkPermissions   string
-	EmailSignedName string
-	DisplayName     string
-	SiteName        string
-	UserName        string
-	UserNameEmail   string
-	Descriptions    string
-	CreatePassword  string
-	UserPhotoLabel  string
-	RoleResources   string
-	SignupAt        string
-	ConfirmedAt     string
-	LastPasswordAt  string
-	LastSignin      string
-	LastFailAt      string
-	LastLocation    string
-	ResetPassword   string
-	ConfirmPassword string
-	FailedAttempt   string
-	OnLeaveFrom     string
-	OnLeaveTo       string
-	UserStatus      string
-	LeaveRequested  string
-	OnLeave         string
-	Blocked         string
-	ProfilePage     string
-	Permissions     string
-	UserStatus1     string
-	UserStatus2     string
-	UserStatus3     string
-	UserStatus4     string
-	UserStatus5     string
+	Role                   string
+	Roles                  string
+	RoleName               string
+	EnName                 string
+	EnPermissions          string
+	AkPermissions          string
+	EmailSignedName        string
+	DisplayName            string
+	SiteName               string
+	UserName               string
+	UserNameEmail          string
+	Descriptions           string
+	CreatePassword         string
+	UserPhotoLabel         string
+	RoleResources          string
+	SignupAt               string
+	ConfirmedAt            string
+	LastPasswordAt         string
+	LastSignin             string
+	LastFailAt             string
+	LastLocation           string
+	ResetPassword          string
+	ConfirmPassword        string
+	FailedAttempt          string
+	OnLeaveFrom            string
+	OnLeaveTo              string
+	UserStatus             string
+	LeaveRequested         string
+	OnLeave                string
+	Blocked                string
+	ProfilePage            string
+	Permissions            string
+	UserStatus1            string
+	UserStatus2            string
+	UserStatus3            string
+	UserStatus4            string
+	UserStatus5            string
+	UserStatusActive       string
+	UserStatusInactive     string
+	UserStatusUnset        string
+	UserDeletedFilter      string
+	DeletedUsersTab        string
+	RestoreUserBtn         string
+	PermanentDeleteBtn     string
+	UserDeletedYes         string
+	UserDeletedNo          string
+	NoUserID               string
+	UserNotFound           string
+	RestoreUserSuccess     string
+	RestoreUserFailed      string
+	PermanentDeleteSuccess string
+	PermanentDeleteFailed  string
+	DeleteUserSuccess      string
+	DeleteUserFailed       string
+	CantDeleteAdminUser    string
+	CantEditDeletedUser    string
+	InvalidUserObject      string
 
 	// SEO Admin
 	SEOSettings string
@@ -234,43 +254,63 @@ var Messages_en_US = &Messages{
 	UserActivities:              "User Activities",
 
 	// User Admin
-	Role:            "Role",
-	Roles:           "Roles",
-	RoleName:        "Role Name",
-	EnName:          "English Name",
-	EnPermissions:   "English Permissions",
-	AkPermissions:   "AK Permissions",
-	EmailSignedName: "Email Signed Name",
-	DisplayName:     "Display Name",
-	SiteName:        "Site Name",
-	UserName:        "User Name",
-	UserNameEmail:   "Email",
-	Descriptions:    "Descriptions",
-	CreatePassword:  "Create Password",
-	UserPhotoLabel:  "Photo",
-	RoleResources:   "Role Resources",
-	SignupAt:        "Signup At",
-	ConfirmedAt:     "Confirm At",
-	LastPasswordAt:  "Last Password Change At",
-	LastSignin:      "Last Login At",
-	LastFailAt:      "Last Failed At",
-	LastLocation:    "Last Location",
-	ResetPassword:   "Reset Password",
-	ConfirmPassword: "Confirm Password",
-	FailedAttempt:   "Failed attempt",
-	OnLeaveFrom:     "On leave from",
-	OnLeaveTo:       "On leave to",
-	UserStatus:      "Status",
-	LeaveRequested:  "Leave Requested",
-	OnLeave:         "On Leave",
-	Blocked:         "Blocked",
-	ProfilePage:     "Profile",
-	Permissions:     "Permissions",
-	UserStatus1:     "Active",
-	UserStatus2:     "Leave Requested",
-	UserStatus3:     "On Leave",
-	UserStatus4:     "Suspended",
-	UserStatus5:     "Blocked",
+	Role:                   "Role",
+	Roles:                  "Roles",
+	RoleName:               "Role Name",
+	EnName:                 "English Name",
+	EnPermissions:          "English Permissions",
+	AkPermissions:          "AK Permissions",
+	EmailSignedName:        "Email Signed Name",
+	DisplayName:            "Display Name",
+	SiteName:               "Site Name",
+	UserName:               "User Name",
+	UserNameEmail:          "Email",
+	Descriptions:           "Descriptions",
+	CreatePassword:         "Create Password",
+	UserPhotoLabel:         "Photo",
+	RoleResources:          "Role Resources",
+	SignupAt:               "Signup At",
+	ConfirmedAt:            "Confirmed At",
+	LastPasswordAt:         "Last Password At",
+	LastSignin:             "Last Signin",
+	LastFailAt:             "Last Fail At",
+	LastLocation:           "Last Location",
+	ResetPassword:          "Reset Password",
+	ConfirmPassword:        "Confirm Password",
+	FailedAttempt:          "Failed Attempt",
+	OnLeaveFrom:            "On Leave From",
+	OnLeaveTo:              "On Leave To",
+	UserStatus:             "Status",
+	LeaveRequested:         "Leave Requested",
+	OnLeave:                "On Leave",
+	Blocked:                "Blocked",
+	ProfilePage:            "Profile Page",
+	Permissions:            "Permissions",
+	UserStatus1:            "Active",
+	UserStatus2:            "Leave Requested",
+	UserStatus3:            "On Leave",
+	UserStatus4:            "Suspended",
+	UserStatus5:            "Blocked",
+	UserStatusActive:       "Active",
+	UserStatusInactive:     "Inactive",
+	UserStatusUnset:        "Unset",
+	UserDeletedFilter:      "Deleted",
+	DeletedUsersTab:        "Deleted Users",
+	RestoreUserBtn:         "Restore",
+	PermanentDeleteBtn:     "Permanently Delete",
+	UserDeletedYes:         "Yes",
+	UserDeletedNo:          "No",
+	NoUserID:               "User ID not found",
+	UserNotFound:           "User not found",
+	RestoreUserSuccess:     "User has been restored successfully",
+	RestoreUserFailed:      "Failed to restore user: ",
+	PermanentDeleteSuccess: "User has been permanently deleted",
+	PermanentDeleteFailed:  "Failed to delete user: ",
+	DeleteUserSuccess:      "User has been deleted successfully",
+	DeleteUserFailed:       "Failed to delete user: ",
+	CantDeleteAdminUser:    "Cannot delete the initial admin user",
+	CantEditDeletedUser:    "Cannot edit deleted user",
+	InvalidUserObject:      "Invalid user object",
 
 	// SEO Admin
 	SEOSettings: "SEO Settings",
@@ -376,43 +416,63 @@ var Messages_zh_CN = &Messages{
 	UserActivities:              "用户活动",
 
 	// User Admin
-	Role:            "角色",
-	Roles:           "角色",
-	RoleName:        "角色名称",
-	EnName:          "英文名称",
-	EnPermissions:   "英文权限",
-	AkPermissions:   "AK权限",
-	EmailSignedName: "电子签名名称",
-	DisplayName:     "显示名称",
-	SiteName:        "站点名称",
-	UserName:        "用户名",
-	UserNameEmail:   "电子邮件",
-	Descriptions:    "描述",
-	CreatePassword:  "创建密码",
-	UserPhotoLabel:  "照片",
-	RoleResources:   "角色资源",
-	SignupAt:        "注册时间",
-	ConfirmedAt:     "确认时间",
-	LastPasswordAt:  "上次密码更改时间",
-	LastSignin:      "上次登录时间",
-	LastFailAt:      "上次失败时间",
-	LastLocation:    "上次位置",
-	ResetPassword:   "重置密码",
-	ConfirmPassword: "确认密码",
-	FailedAttempt:   "失败尝试",
-	OnLeaveFrom:     "离开时间",
-	OnLeaveTo:       "离开时间",
-	UserStatus:      "状态",
-	LeaveRequested:  "请求离开",
-	OnLeave:         "离开",
-	Blocked:         "已阻止",
-	ProfilePage:     "个人资料",
-	Permissions:     "权限",
-	UserStatus1:     "活跃",
-	UserStatus2:     "请求离开",
-	UserStatus3:     "离开",
-	UserStatus4:     "暂停",
-	UserStatus5:     "已阻止",
+	Role:                   "角色",
+	Roles:                  "角色",
+	RoleName:               "角色名称",
+	EnName:                 "英文名称",
+	EnPermissions:          "英文权限",
+	AkPermissions:          "AK权限",
+	EmailSignedName:        "电子签名名称",
+	DisplayName:            "显示名称",
+	SiteName:               "站点名称",
+	UserName:               "用户名",
+	UserNameEmail:          "电子邮件",
+	Descriptions:           "描述",
+	CreatePassword:         "创建密码",
+	UserPhotoLabel:         "照片",
+	RoleResources:          "角色资源",
+	SignupAt:               "注册时间",
+	ConfirmedAt:            "确认时间",
+	LastPasswordAt:         "上次密码更改时间",
+	LastSignin:             "上次登录时间",
+	LastFailAt:             "上次失败时间",
+	LastLocation:           "上次位置",
+	ResetPassword:          "重置密码",
+	ConfirmPassword:        "确认密码",
+	FailedAttempt:          "失败尝试",
+	OnLeaveFrom:            "离开时间",
+	OnLeaveTo:              "离开时间",
+	UserStatus:             "状态",
+	LeaveRequested:         "请求离开",
+	OnLeave:                "离开",
+	Blocked:                "已阻止",
+	ProfilePage:            "个人资料",
+	Permissions:            "权限",
+	UserStatus1:            "活跃",
+	UserStatus2:            "请求离开",
+	UserStatus3:            "离开",
+	UserStatus4:            "暂停",
+	UserStatus5:            "已阻止",
+	UserStatusActive:       "活跃",
+	UserStatusInactive:     "未激活",
+	UserStatusUnset:        "未设置",
+	UserDeletedFilter:      "已删除",
+	DeletedUsersTab:        "已删除用户",
+	RestoreUserBtn:         "恢复",
+	PermanentDeleteBtn:     "永久删除",
+	UserDeletedYes:         "是",
+	UserDeletedNo:          "否",
+	NoUserID:               "未找到用户ID",
+	UserNotFound:           "找不到指定用户",
+	RestoreUserSuccess:     "用户已成功恢复",
+	RestoreUserFailed:      "恢复用户失败: ",
+	PermanentDeleteSuccess: "用户已永久删除",
+	PermanentDeleteFailed:  "删除用户失败: ",
+	DeleteUserSuccess:      "用户已成功删除",
+	DeleteUserFailed:       "删除用户失败: ",
+	CantDeleteAdminUser:    "不能删除初始管理员用户",
+	CantEditDeletedUser:    "不能编辑已删除的用户",
+	InvalidUserObject:      "无效的用户对象",
 
 	// SEO Admin
 	SEOSettings: "SEO设置",

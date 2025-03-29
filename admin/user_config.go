@@ -72,36 +72,38 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		PerPage(10)
 
 	cl.FilterDataFunc(func(ctx *web.EventContext) vx.FilterData {
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
+
 		return []*vx.FilterItem{
 			{
 				Key:          "name",
-				Label:        "Name",
+				Label:        msgr.Name,
 				ItemType:     vx.ItemTypeString,
 				SQLCondition: `name %s ?`,
 			},
 			{
 				Key:          "account",
-				Label:        "Account",
+				Label:        msgr.Account,
 				ItemType:     vx.ItemTypeString,
 				SQLCondition: `account %s ?`,
 			},
 			{
 				Key:      "status",
-				Label:    "Status",
+				Label:    msgr.Status,
 				ItemType: vx.ItemTypeSelect,
 				Options: []*vx.SelectItem{
-					{Text: "Active", Value: models.StatusActive},
-					{Text: "Inactive", Value: models.StatusInactive},
+					{Text: msgr.UserStatusActive, Value: models.StatusActive},
+					{Text: msgr.UserStatusInactive, Value: models.StatusInactive},
 				},
 				SQLCondition: `status %s ?`,
 			},
 			{
 				Key:      "deleted",
-				Label:    "已删除",
+				Label:    msgr.UserDeletedFilter,
 				ItemType: vx.ItemTypeSelect,
 				Options: []*vx.SelectItem{
-					{Text: "是", Value: "1"},
-					{Text: "否", Value: "0"},
+					{Text: msgr.UserDeletedYes, Value: "1"},
+					{Text: msgr.UserDeletedNo, Value: "0"},
 				},
 				// 这个条件在 SearchFunc 中单独处理，这里不需要设置 SQLCondition
 			},
@@ -123,7 +125,7 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 				Query: url.Values{"status": []string{models.StatusActive}},
 			},
 			{
-				Label: "已删除用户",
+				Label: msgr.DeletedUsersTab,
 				ID:    "deleted",
 				Query: url.Values{"deleted": []string{"1"}},
 			},
@@ -143,19 +145,20 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		u := obj.(*models.User)
 		var text string
 		var color string
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
 
 		// 不区分大小写比较
 		statusLower := strings.ToLower(u.Status)
 		switch statusLower {
 		case strings.ToLower(models.StatusActive):
-			text = "活跃"
+			text = msgr.UserStatusActive
 			color = "success"
 		case strings.ToLower(models.StatusInactive):
-			text = "未激活"
+			text = msgr.UserStatusInactive
 			color = "error"
 		default:
 			if u.Status == "" {
-				text = "未设置"
+				text = msgr.UserStatusUnset
 				color = "grey"
 			} else {
 				text = u.Status
@@ -170,6 +173,7 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 	cl.Field("ID").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
 		u := obj.(*models.User)
 		id := fmt.Sprintf("%d", u.ID)
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
 
 		// 是否在查看已删除用户
 		isDeletedView := ctx.R.FormValue("f_deleted") == "1"
@@ -190,7 +194,7 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		var buttons []h.HTMLComponent
 
 		// 在已删除视图添加恢复按钮
-		buttons = append(buttons, v.VBtn("恢复").
+		buttons = append(buttons, v.VBtn(msgr.RestoreUserBtn).
 			Size("small").
 			Color("success").
 			Attr("@click", web.Plaid().
@@ -200,7 +204,7 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 			Class("mr-2"))
 
 		// 在已删除视图添加永久删除按钮
-		buttons = append(buttons, v.VBtn("永久删除").
+		buttons = append(buttons, v.VBtn(msgr.PermanentDeleteBtn).
 			Size("small").
 			Color("error").
 			Attr("@click", web.Plaid().
@@ -218,18 +222,19 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 
 	// 注册恢复用户事件
 	user.RegisterEventFunc("restore_user", func(ctx *web.EventContext) (r web.EventResponse, err error) {
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
 		id := ctx.R.FormValue("id")
 		if id == "" {
-			ctx.Flash = "未找到用户ID"
+			ctx.Flash = msgr.NoUserID
 			r.Reload = true
 			return
 		}
 
 		// 使用Unscoped恢复被软删除的用户
 		if err = db.Unscoped().Model(&models.User{}).Where("id = ?", id).Update("deleted_at", nil).Error; err != nil {
-			ctx.Flash = "恢复用户失败: " + err.Error()
+			ctx.Flash = msgr.RestoreUserFailed + err.Error()
 		} else {
-			ctx.Flash = "用户已成功恢复"
+			ctx.Flash = msgr.RestoreUserSuccess
 		}
 
 		r.Reload = true
@@ -238,18 +243,19 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 
 	// 注册永久删除用户事件
 	user.RegisterEventFunc("permanent_delete_user", func(ctx *web.EventContext) (r web.EventResponse, err error) {
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
 		id := ctx.R.FormValue("id")
 		if id == "" {
-			ctx.Flash = "未找到用户ID"
+			ctx.Flash = msgr.NoUserID
 			r.Reload = true
 			return
 		}
 
 		// 永久删除用户
 		if err = db.Unscoped().Delete(&models.User{}, "id = ?", id).Error; err != nil {
-			ctx.Flash = "删除用户失败: " + err.Error()
+			ctx.Flash = msgr.PermanentDeleteFailed + err.Error()
 		} else {
-			ctx.Flash = "用户已永久删除"
+			ctx.Flash = msgr.PermanentDeleteSuccess
 		}
 
 		r.Reload = true
@@ -258,16 +264,17 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 
 	// 注册软删除用户事件
 	user.RegisterEventFunc("delete_user", func(ctx *web.EventContext) (r web.EventResponse, err error) {
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
 		id := ctx.R.FormValue("id")
 		if id == "" {
-			ctx.Flash = "未找到用户ID"
+			ctx.Flash = msgr.NoUserID
 			r.Reload = true
 			return
 		}
 
 		uid, err1 := strconv.Atoi(id)
 		if err1 != nil {
-			ctx.Flash = "无效的用户ID"
+			ctx.Flash = msgr.InvalidUserObject
 			r.Reload = true
 			return
 		}
@@ -275,22 +282,22 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		// 检查是否为初始管理员用户，不允许删除
 		var user models.User
 		if err = db.First(&user, uid).Error; err != nil {
-			ctx.Flash = "找不到指定用户: " + err.Error()
+			ctx.Flash = msgr.UserNotFound + ": " + err.Error()
 			r.Reload = true
 			return
 		}
 
 		if user.GetAccountName() == loginInitialUserEmail {
-			ctx.Flash = "不能删除初始管理员用户"
+			ctx.Flash = msgr.CantDeleteAdminUser
 			r.Reload = true
 			return
 		}
 
 		// 软删除用户
 		if err = db.Delete(&models.User{}, uid).Error; err != nil {
-			ctx.Flash = "删除用户失败: " + err.Error()
+			ctx.Flash = msgr.DeleteUserFailed + err.Error()
 		} else {
-			ctx.Flash = "用户已成功删除"
+			ctx.Flash = msgr.DeleteUserSuccess
 		}
 
 		r.Reload = true
@@ -301,6 +308,8 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 
 	// 使用FetchFunc来阻止编辑已删除用户
 	ed.FetchFunc(func(obj interface{}, id string, ctx *web.EventContext) (interface{}, error) {
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
+
 		if id == "" {
 			// 创建新用户时设置默认值
 			u, ok := obj.(*models.User)
@@ -316,7 +325,7 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		// 使用Unscoped查询包括已删除的用户
 		u := &models.User{}
 		if err := db.Unscoped().First(u, id).Error; err != nil {
-			return nil, fmt.Errorf("找不到用户: %v", err)
+			return nil, fmt.Errorf(msgr.UserNotFound+": %v", err)
 		}
 
 		return u, nil
@@ -324,13 +333,15 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 
 	// 使用SaveFunc处理保存逻辑
 	ed.SaveFunc(func(obj interface{}, id string, ctx *web.EventContext) (err error) {
+		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
+
 		// 执行原始的表单处理逻辑
 		u, ok := obj.(*models.User)
 		if !ok {
-			return fmt.Errorf("无效的用户对象")
+			return fmt.Errorf(msgr.InvalidUserObject)
 		}
 		if u.DeletedAt.Valid {
-			return fmt.Errorf("不能编辑已删除的用户")
+			return fmt.Errorf(msgr.CantEditDeletedUser)
 		}
 
 		// 确保状态字段有值
