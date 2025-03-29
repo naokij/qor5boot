@@ -38,6 +38,26 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 				Having("COUNT(CASE WHEN r.name in (?) THEN 1 END) = 0", []string{models.RoleAdmin, models.RoleManager})
 		}
 
+		// 处理已删除用户的查询
+		// 首先检查 filter_deleted 参数（从过滤器来的）
+		showDeleted := false
+		if ctx.R.FormValue("f_deleted") == "1" {
+			showDeleted = true
+		}
+		// 然后检查 deleted 参数（从标签页来的）
+		if ctx.R.FormValue("deleted") == "1" {
+			showDeleted = true
+		}
+
+		// 无论是否查询已删除用户，都预加载 Roles 关联
+		qdb = qdb.Preload("Roles")
+
+		if showDeleted {
+			qdb = qdb.Unscoped().Where("deleted_at IS NOT NULL")
+		} else {
+			qdb = qdb.Where("deleted_at IS NULL")
+		}
+
 		for i, condition := range params.SQLConditions {
 			if condition.Query == "(id::text) IN (?)" {
 				params.SQLConditions[i].Query = "(users.id::text) IN (?)"
@@ -75,6 +95,16 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 				},
 				SQLCondition: `status %s ?`,
 			},
+			{
+				Key:      "deleted",
+				Label:    "已删除",
+				ItemType: vx.ItemTypeSelect,
+				Options: []*vx.SelectItem{
+					{Text: "是", Value: "1"},
+					{Text: "否", Value: "0"},
+				},
+				// 这个条件在 SearchFunc 中单独处理，这里不需要设置 SQLCondition
+			},
 		}
 	})
 
@@ -92,6 +122,11 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 				ID:    "active",
 				Query: url.Values{"status": []string{models.StatusActive}},
 			},
+			{
+				Label: "已删除用户",
+				ID:    "deleted",
+				Query: url.Values{"deleted": []string{"1"}},
+			},
 		}
 	})
 
@@ -106,17 +141,218 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 
 	cl.Field("Status").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
 		u := obj.(*models.User)
+		var text string
 		var color string
-		switch u.Status {
-		case models.StatusActive:
-			color = "green"
-		case models.StatusInactive:
-			color = "red"
+
+		// 不区分大小写比较
+		statusLower := strings.ToLower(u.Status)
+		switch statusLower {
+		case strings.ToLower(models.StatusActive):
+			text = "活跃"
+			color = "success"
+		case strings.ToLower(models.StatusInactive):
+			text = "未激活"
+			color = "error"
+		default:
+			if u.Status == "" {
+				text = "未设置"
+				color = "grey"
+			} else {
+				text = u.Status
+				color = "grey"
+			}
 		}
-		return h.Td(v.VChip(h.Text(u.Status)).Color(color))
+
+		return h.Td(v.VChip(h.Text(text)).Color(color))
+	})
+
+	// 为每行添加操作按钮
+	cl.Field("ID").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		u := obj.(*models.User)
+		id := fmt.Sprintf("%d", u.ID)
+
+		// 是否在查看已删除用户
+		isDeletedView := ctx.R.FormValue("f_deleted") == "1"
+
+		// 如果不是已删除用户视图，只显示ID
+		if !isDeletedView {
+			return h.Td(h.Text(id))
+		}
+
+		// 创建标准ID列
+		idCell := h.Td(h.Text(id))
+
+		// 如果是初始管理员用户，不显示恢复/删除按钮
+		if u.GetAccountName() == loginInitialUserEmail {
+			return idCell
+		}
+
+		var buttons []h.HTMLComponent
+
+		// 在已删除视图添加恢复按钮
+		buttons = append(buttons, v.VBtn("恢复").
+			Size("small").
+			Color("success").
+			Attr("@click", web.Plaid().
+				EventFunc("restore_user").
+				Query("id", id).
+				Go()).
+			Class("mr-2"))
+
+		// 在已删除视图添加永久删除按钮
+		buttons = append(buttons, v.VBtn("永久删除").
+			Size("small").
+			Color("error").
+			Attr("@click", web.Plaid().
+				EventFunc("permanent_delete_user").
+				Query("id", id).
+				Go()))
+
+		return h.Td(
+			h.Div(
+				h.Text(id),
+				h.Div(buttons...).Class("mt-2"),
+			),
+		)
+	})
+
+	// 注册恢复用户事件
+	user.RegisterEventFunc("restore_user", func(ctx *web.EventContext) (r web.EventResponse, err error) {
+		id := ctx.R.FormValue("id")
+		if id == "" {
+			ctx.Flash = "未找到用户ID"
+			r.Reload = true
+			return
+		}
+
+		// 使用Unscoped恢复被软删除的用户
+		if err = db.Unscoped().Model(&models.User{}).Where("id = ?", id).Update("deleted_at", nil).Error; err != nil {
+			ctx.Flash = "恢复用户失败: " + err.Error()
+		} else {
+			ctx.Flash = "用户已成功恢复"
+		}
+
+		r.Reload = true
+		return
+	})
+
+	// 注册永久删除用户事件
+	user.RegisterEventFunc("permanent_delete_user", func(ctx *web.EventContext) (r web.EventResponse, err error) {
+		id := ctx.R.FormValue("id")
+		if id == "" {
+			ctx.Flash = "未找到用户ID"
+			r.Reload = true
+			return
+		}
+
+		// 永久删除用户
+		if err = db.Unscoped().Delete(&models.User{}, "id = ?", id).Error; err != nil {
+			ctx.Flash = "删除用户失败: " + err.Error()
+		} else {
+			ctx.Flash = "用户已永久删除"
+		}
+
+		r.Reload = true
+		return
+	})
+
+	// 注册软删除用户事件
+	user.RegisterEventFunc("delete_user", func(ctx *web.EventContext) (r web.EventResponse, err error) {
+		id := ctx.R.FormValue("id")
+		if id == "" {
+			ctx.Flash = "未找到用户ID"
+			r.Reload = true
+			return
+		}
+
+		uid, err1 := strconv.Atoi(id)
+		if err1 != nil {
+			ctx.Flash = "无效的用户ID"
+			r.Reload = true
+			return
+		}
+
+		// 检查是否为初始管理员用户，不允许删除
+		var user models.User
+		if err = db.First(&user, uid).Error; err != nil {
+			ctx.Flash = "找不到指定用户: " + err.Error()
+			r.Reload = true
+			return
+		}
+
+		if user.GetAccountName() == loginInitialUserEmail {
+			ctx.Flash = "不能删除初始管理员用户"
+			r.Reload = true
+			return
+		}
+
+		// 软删除用户
+		if err = db.Delete(&models.User{}, uid).Error; err != nil {
+			ctx.Flash = "删除用户失败: " + err.Error()
+		} else {
+			ctx.Flash = "用户已成功删除"
+		}
+
+		r.Reload = true
+		return
 	})
 
 	ed := user.Editing("Type", "Name", "OAuthProvider", "OAuthIdentifier", "Account", "Password", "Status", "Roles", "Company")
+
+	// 使用FetchFunc来阻止编辑已删除用户
+	ed.FetchFunc(func(obj interface{}, id string, ctx *web.EventContext) (interface{}, error) {
+		if id == "" {
+			// 创建新用户时设置默认值
+			u, ok := obj.(*models.User)
+			if ok {
+				// 设置默认状态为活跃
+				if u.Status == "" {
+					u.Status = models.StatusActive
+				}
+			}
+			return obj, nil
+		}
+
+		// 使用Unscoped查询包括已删除的用户
+		u := &models.User{}
+		if err := db.Unscoped().First(u, id).Error; err != nil {
+			return nil, fmt.Errorf("找不到用户: %v", err)
+		}
+
+		return u, nil
+	})
+
+	// 使用SaveFunc处理保存逻辑
+	ed.SaveFunc(func(obj interface{}, id string, ctx *web.EventContext) (err error) {
+		// 执行原始的表单处理逻辑
+		u, ok := obj.(*models.User)
+		if !ok {
+			return fmt.Errorf("无效的用户对象")
+		}
+		if u.DeletedAt.Valid {
+			return fmt.Errorf("不能编辑已删除的用户")
+		}
+
+		// 确保状态字段有值
+		if u.Status == "" {
+			u.Status = models.StatusActive
+		}
+
+		// 保存到数据库
+		if id == "" {
+			// 创建新用户
+			if err := db.Create(u).Error; err != nil {
+				return err
+			}
+		} else {
+			// 更新现有用户
+			if err := db.Save(u).Error; err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 
 	ed.Field("Type").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
 		u := obj.(*models.User)
@@ -185,9 +421,15 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 	})
 
 	ed.Field("Status").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		u := obj.(*models.User)
+		// 如果是新用户且状态为空，则默认设置为活跃
+		if u.ID == 0 && u.Status == "" {
+			u.Status = models.StatusActive
+		}
+
 		return v.VSelect().Attr(web.VField(field.Name, field.Value(obj))...).
 			Label(field.Label).
-			Items([]string{"active", "inactive"})
+			Items([]string{models.StatusActive, models.StatusInactive})
 	})
 
 	ed.Field("Roles").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
