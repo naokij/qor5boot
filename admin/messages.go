@@ -40,6 +40,7 @@ type Messages struct {
 	LoginProviderGoogleText        string
 	LoginProviderMicrosoftText     string
 	LoginProviderGithubText        string
+	LoginProviderWecomText         string
 	OAuthCompleteInfoTitle         string
 	OAuthCompleteInfoPositionLabel string
 	OAuthCompleteInfoAgreeLabel    string
@@ -202,6 +203,7 @@ var Messages_en_US = &Messages{
 	LoginProviderGoogleText:        "Login with Google",
 	LoginProviderMicrosoftText:     "Login with Microsoft",
 	LoginProviderGithubText:        "Login with GitHub",
+	LoginProviderWecomText:         "Login with Wecom",
 	OAuthCompleteInfoTitle:         "OAuth Complete Info",
 	OAuthCompleteInfoPositionLabel: "Position",
 	OAuthCompleteInfoAgreeLabel:    "Agree",
@@ -364,6 +366,7 @@ var Messages_zh_CN = &Messages{
 	LoginProviderGoogleText:        "使用Google登录",
 	LoginProviderMicrosoftText:     "使用Microsoft登录",
 	LoginProviderGithubText:        "使用GitHub登录",
+	LoginProviderWecomText:         "使用企业微信登录",
 	OAuthCompleteInfoTitle:         "OAuth完成信息",
 	OAuthCompleteInfoPositionLabel: "位置",
 	OAuthCompleteInfoAgreeLabel:    "同意",

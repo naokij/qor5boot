@@ -53,9 +53,9 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		qdb = qdb.Preload("Roles")
 
 		if showDeleted {
-			qdb = qdb.Unscoped().Where("deleted_at IS NOT NULL")
+			qdb = qdb.Unscoped().Where("users.deleted_at IS NOT NULL")
 		} else {
-			qdb = qdb.Where("deleted_at IS NULL")
+			qdb = qdb.Where("users.deleted_at IS NULL")
 		}
 
 		for i, condition := range params.SQLConditions {
@@ -67,7 +67,7 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		return gorm2op.DataOperator(qdb).Search(ctx, params)
 	})
 
-	cl := user.Listing("ID", "Name", "Account", "Status", "Roles").
+	cl := user.Listing("ID", "Name", "Account", "OAuthProvider", "OAuthIdentifier", "OAuthUserID", "Status", "Roles").
 		SearchColumns("name", "account").
 		PerPage(10)
 
@@ -252,6 +252,12 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		}
 
 		// 永久删除用户
+		// 需要处理user_role_join表 panic: ERROR: update or delete on table "users" violates foreign key constraint "fk_user_role_join_user" on table "user_role_join" (SQLSTATE 23503)
+		// 需要先删除user_role_join表中的记录
+		if err = db.Exec("DELETE FROM user_role_join WHERE user_id = ?", id).Error; err != nil {
+			ctx.Flash = msgr.PermanentDeleteFailed + err.Error()
+			return
+		}
 		if err = db.Unscoped().Delete(&models.User{}, "id = ?", id).Error; err != nil {
 			ctx.Flash = msgr.PermanentDeleteFailed + err.Error()
 		} else {
@@ -304,7 +310,7 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 		return
 	})
 
-	ed := user.Editing("Type", "Name", "OAuthProvider", "OAuthIdentifier", "Account", "Password", "Status", "Roles", "Company")
+	ed := user.Editing("Type", "Name", "OAuthProvider", "OAuthIdentifier", "OAuthUserID", "Account", "Password", "Status", "Roles", "Company")
 
 	// 使用FetchFunc来阻止编辑已删除用户
 	ed.FetchFunc(func(obj interface{}, id string, ctx *web.EventContext) (interface{}, error) {
@@ -399,6 +405,15 @@ func configUser(b *presets.Builder, ab *activity.Builder, db *gorm.DB, loginSess
 	})
 
 	ed.Field("OAuthIdentifier").Label("OAuth Identifier").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
+		u := obj.(*models.User)
+		if !u.IsOAuthUser() {
+			return nil
+		} else {
+			return v.VTextField().Attr(web.VField(field.Name, field.Value(obj))...).Label(field.Label).ErrorMessages(field.Errors...).Disabled(false)
+		}
+	})
+
+	ed.Field("OAuthUserID").Label("OAuth UserID").ComponentFunc(func(obj interface{}, field *presets.FieldContext, ctx *web.EventContext) h.HTMLComponent {
 		u := obj.(*models.User)
 		if !u.IsOAuthUser() {
 			return nil

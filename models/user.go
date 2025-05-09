@@ -17,6 +17,7 @@ const (
 	OAuthProviderGoogle          = "google"
 	OAuthProviderMicrosoftOnline = "microsoftonline"
 	OAuthProviderGithub          = "github"
+	OAuthProviderWecom           = "wecom"
 
 	StatusActive   = "active"
 	StatusInactive = "inactive"
@@ -33,6 +34,7 @@ var OAuthProviders = []string{
 	OAuthProviderGoogle,
 	OAuthProviderMicrosoftOnline,
 	OAuthProviderGithub,
+	OAuthProviderWecom,
 }
 
 type User struct {
@@ -71,5 +73,5 @@ func (u User) GetRoles() (rs []string) {
 }
 
 func (u User) IsOAuthUser() bool {
-	return u.OAuthProvider != "" && u.OAuthIdentifier != ""
+	return u.OAuthProvider != ""
 }

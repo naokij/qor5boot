@@ -2,13 +2,12 @@ package admin
 
 import (
 	_ "embed"
-	"errors"
 	"net/http"
 
-	"github.com/markbates/goth"
 	"github.com/markbates/goth/providers/github"
 	"github.com/markbates/goth/providers/google"
 	"github.com/markbates/goth/providers/microsoftonline"
+	"github.com/markbates/goth/providers/wecom"
 	"github.com/naokij/qor5boot/models"
 	"github.com/qor5/admin/v3/activity"
 	plogin "github.com/qor5/admin/v3/login"
@@ -29,6 +28,9 @@ var (
 	loginMicrosoftOnlineSecret = getEnvWithDefault("LOGIN_MICROSOFTONLINE_SECRET", "")
 	loginGithubKey             = getEnvWithDefault("LOGIN_GITHUB_KEY", "")
 	loginGithubSecret          = getEnvWithDefault("LOGIN_GITHUB_SECRET", "")
+	loginWecomCorpid           = getEnvWithDefault("LOGIN_WECOM_CORPID", "")
+	loginWecomSecret           = getEnvWithDefault("LOGIN_WECOM_SECRET", "")
+	loginWecomAgentid          = getEnvWithDefault("LOGIN_WECOM_AGENTID", "")
 	baseURL                    = getEnvWithDefault("BASE_URL", "")
 	recaptchaSiteKey           = getEnvWithDefault("RECAPTCHA_SITE_KEY", "")
 	recaptchaSecret            = getEnvWithDefault("RECAPTCHA_SECRET_KEY", "")
@@ -80,6 +82,15 @@ func initLoginSessionBuilder(db *gorm.DB, pb *presets.Builder, ab *activity.Buil
 				})
 			}
 
+			if loginWecomCorpid != "" && loginWecomSecret != "" && loginWecomAgentid != "" {
+				providers = append(providers, &login.Provider{
+					Goth: wecom.New(loginWecomCorpid, loginWecomSecret, loginWecomAgentid, baseURL+"/auth/callback?provider="+models.OAuthProviderWecom),
+					Key:  models.OAuthProviderWecom,
+					Text: "LoginProviderWecomText",
+					Logo: RawHTML(`<svg width="24" height="24" viewBox="0 0 202 169" xmlns="http://www.w3.org/2000/svg"><g fill="none" fill-rule="evenodd"><path d="M134.19 137.564a2.774 2.774 0 00.583.538 35.667 35.667 0 0110.599 19.059 11.555 11.555 0 00.388 2.35 11.555 11.555 0 002.986 5.144c4.532 4.53 11.879 4.53 16.41 0 4.532-4.532 4.532-11.88 0-16.411a11.55 11.55 0 00-6.988-3.333 35.667 35.667 0 01-19.857-11.054h-.002a2.775 2.775 0 00-4.12 3.707" fill="#FB6500"/><path d="M170.88 146.48a2.774 2.774 0 00.538-.583 35.667 35.667 0 0119.059-10.599 11.555 11.555 0 002.35-.389 11.555 11.555 0 005.143-2.986c4.531-4.532 4.531-11.879 0-16.41-4.532-4.532-11.879-4.532-16.41 0a11.55 11.55 0 00-3.334 6.988 35.667 35.667 0 01-11.054 19.857l.001.002a2.775 2.775 0 003.706 4.12" fill="#0082EF"/><path d="M179.795 109.79a2.774 2.774 0 00-.583-.538 35.667 35.667 0 01-10.599-19.059 11.555 11.555 0 00-.388-2.351 11.555 11.555 0 00-2.986-5.143c-4.532-4.531-11.88-4.531-16.411 0-4.531 4.532-4.531 11.879 0 16.41a11.55 11.55 0 006.989 3.334 35.667 35.667 0 0119.857 11.054l.002-.001a2.775 2.775 0 004.119-3.706" fill="#2DBC00"/><path d="M143.105 100.874a2.774 2.774 0 00-.538.583 35.667 35.667 0 01-19.059 10.599 11.555 11.555 0 00-2.35.388 11.555 11.555 0 00-5.144 2.986c-4.53 4.532-4.53 11.88 0 16.411 4.532 4.531 11.88 4.531 16.411 0a11.55 11.55 0 003.333-6.989 35.667 35.667 0 0111.054-19.857v-.002a2.775 2.775 0 00-3.707-4.119" fill="#FC0"/><path d="M160.36 44.175c-3.228-6.632-7.565-12.788-12.89-18.298C134.014 11.96 115.176 2.997 94.426.637A97.692 97.692 0 0083.45 0c-3.39 0-6.924.197-10.506.587-20.843 2.266-39.786 11.183-53.341 25.11-5.35 5.496-9.71 11.638-12.96 18.252C2.236 52.925 0 62.453 0 72.27c0 12.636 3.845 25.096 11.12 36.034 4.115 6.186 11.15 14.181 17.172 19.08l-3.336 13.795-.96 3.885c-.17.382-.3.782-.392 1.2-.057.253-.075.52-.1.785-.019.201-.06.395-.06.602a6.422 6.422 0 006.422 6.422c1.16 0 2.233-.33 3.172-.868l.089-.049c.137-.08.277-.153.408-.243l23.82-11.956c5.128 1.471 10.215 2.412 15.578 3.002 3.486.384 7.025.578 10.518.578 3.563 0 7.255-.215 10.975-.638a93.368 93.368 0 0021.03-4.915 11.564 11.564 0 01-2.118-.945c-4.085-2.337-6.201-6.783-5.781-11.183a78.463 78.463 0 01-14.91 3.188 81.649 81.649 0 01-9.196.536c-2.922 0-5.884-.163-8.802-.484-.61-.067-1.216-.16-1.823-.24-4.008-.535-7.971-1.352-11.8-2.474a8.057 8.057 0 00-2.453-.375c-1.32 0-2.6.35-3.9 1.023-.168.087-.334.16-.504.258l-15.283 9.007-.017.01c-.316.184-.495.253-.66.253-.537 0-.973-.454-.973-1.012l.566-2.283.65-2.48 2.26-8.608c.146-.528.296-1.162.296-1.874a6.16 6.16 0 00-2.509-4.968 64.836 64.836 0 01-6.124-5.143c-3.317-3.147-6.23-6.582-8.677-10.262-5.762-8.662-8.808-18.49-8.808-28.426 0-7.71 1.764-15.208 5.24-22.284 2.597-5.286 6.095-10.208 10.398-14.63C41.67 24.14 57.337 16.8 74.645 14.917a81.755 81.755 0 018.805-.494c2.972 0 6.066.18 9.196.536 17.227 1.96 32.805 9.336 43.865 20.774 4.282 4.431 7.762 9.364 10.34 14.663 3.42 7.031 5.155 14.468 5.155 22.105 0 .794-.05 1.585-.089 2.377 4.47-2.735 10.375-2.198 14.243 1.67.196.195.36.41.538.615.128-1.627.2-3.259.2-4.895 0-9.724-2.2-19.176-6.54-28.093" fill="#0079DE"/></g></svg>`),
+				})
+			}
+
 			return providers
 		}()...).
 		HomeURLFunc(func(r *http.Request, user interface{}) string {
@@ -106,42 +117,15 @@ func initLoginSessionBuilder(db *gorm.DB, pb *presets.Builder, ab *activity.Buil
 				return nil
 			}
 		}).
+		OAuthIdentifier(models.OAuthProviderWecom, login.OAuthIdentifierUserID).
+		OAuthIdentifier(models.OAuthProviderGoogle, login.OAuthIdentifierEmail).
+		OAuthIdentifier(models.OAuthProviderMicrosoftOnline, login.OAuthIdentifierEmail).
+		OAuthIdentifier(models.OAuthProviderGithub, login.OAuthIdentifierEmail).
+		AfterOAuthComplete(func(r *http.Request, user interface{}, extraVals ...interface{}) error {
+			return nil
+		}).
 		WrapAfterOAuthComplete(func(in login.HookFunc) login.HookFunc {
 			return func(r *http.Request, user interface{}, extraVals ...interface{}) error {
-				if err := in(r, user, extraVals...); err != nil {
-					return err
-				}
-
-				u := user.(goth.User)
-				if u.Email == "" {
-					return nil
-				}
-
-				// 查找是否有匹配的用户账号
-				var existingUser models.User
-				err := db.Where("account = ?", u.Email).First(&existingUser).Error
-
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					// 没有找到匹配用户，拒绝登录
-					return &login.NoticeError{
-						Level:   login.NoticeLevel_Error,
-						Message: "您的账号未在系统中注册。请联系管理员授权后再使用OAuth登录。",
-					}
-				} else if err != nil {
-					// 数据库查询错误
-					return err
-				}
-
-				// 找到匹配用户，更新OAuth信息
-				existingUser.OAuthProvider = u.Provider
-				existingUser.OAuthUserID = u.UserID
-				existingUser.OAuthIdentifier = u.Email
-				existingUser.OAuthAvatar = u.AvatarURL
-
-				if err := db.Save(&existingUser).Error; err != nil {
-					return err
-				}
-
 				return nil
 			}
 		}).TOTP(false).MaxRetryCount(0)
@@ -171,7 +155,12 @@ func initLoginSessionBuilder(db *gorm.DB, pb *presets.Builder, ab *activity.Buil
 			}
 		</style>
 		`)
-
+		config.OAuthProviderDisplay = func(provider *login.Provider) plogin.OAuthProviderDisplay {
+			return plogin.OAuthProviderDisplay{
+				Logo: provider.Logo,
+				Text: i18n.T(ctx.R, I18nAdminKey, provider.Text),
+			}
+		}
 		return config, nil
 	})(loginBuilder.ViewHelper(), pb))
 
