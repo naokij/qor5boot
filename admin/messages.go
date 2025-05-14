@@ -41,6 +41,7 @@ type Messages struct {
 	LoginProviderMicrosoftText     string
 	LoginProviderGithubText        string
 	LoginProviderWecomText         string
+	LoginProviderDingtalkText      string
 	OAuthCompleteInfoTitle         string
 	OAuthCompleteInfoPositionLabel string
 	OAuthCompleteInfoAgreeLabel    string
@@ -204,6 +205,7 @@ var Messages_en_US = &Messages{
 	LoginProviderMicrosoftText:     "Login with Microsoft",
 	LoginProviderGithubText:        "Login with GitHub",
 	LoginProviderWecomText:         "Login with Wecom",
+	LoginProviderDingtalkText:      "Login with Dingtalk",
 	OAuthCompleteInfoTitle:         "OAuth Complete Info",
 	OAuthCompleteInfoPositionLabel: "Position",
 	OAuthCompleteInfoAgreeLabel:    "Agree",
@@ -367,6 +369,7 @@ var Messages_zh_CN = &Messages{
 	LoginProviderMicrosoftText:     "使用Microsoft登录",
 	LoginProviderGithubText:        "使用GitHub登录",
 	LoginProviderWecomText:         "使用企业微信登录",
+	LoginProviderDingtalkText:      "使用钉钉登录",
 	OAuthCompleteInfoTitle:         "OAuth完成信息",
 	OAuthCompleteInfoPositionLabel: "位置",
 	OAuthCompleteInfoAgreeLabel:    "同意",

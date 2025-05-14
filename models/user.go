@@ -18,6 +18,7 @@ const (
 	OAuthProviderMicrosoftOnline = "microsoftonline"
 	OAuthProviderGithub          = "github"
 	OAuthProviderWecom           = "wecom"
+	OAuthProviderDingtalk        = "dingtalk"
 
 	StatusActive   = "active"
 	StatusInactive = "inactive"
@@ -35,6 +36,7 @@ var OAuthProviders = []string{
 	OAuthProviderMicrosoftOnline,
 	OAuthProviderGithub,
 	OAuthProviderWecom,
+	OAuthProviderDingtalk,
 }
 
 type User struct {

@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"net/http"
 
+	"github.com/markbates/goth/providers/dingtalk"
 	"github.com/markbates/goth/providers/github"
 	"github.com/markbates/goth/providers/google"
 	"github.com/markbates/goth/providers/microsoftonline"
@@ -31,6 +32,9 @@ var (
 	loginWecomCorpid           = getEnvWithDefault("LOGIN_WECOM_CORPID", "")
 	loginWecomSecret           = getEnvWithDefault("LOGIN_WECOM_SECRET", "")
 	loginWecomAgentid          = getEnvWithDefault("LOGIN_WECOM_AGENTID", "")
+	loginDingtalkAppid         = getEnvWithDefault("LOGIN_DINGTALK_APPID", "")
+	loginDingtalkSecret        = getEnvWithDefault("LOGIN_DINGTALK_SECRET", "")
+	loginDingtalkCorpId        = getEnvWithDefault("LOGIN_DINGTALK_CORPID", "")
 	baseURL                    = getEnvWithDefault("BASE_URL", "")
 	recaptchaSiteKey           = getEnvWithDefault("RECAPTCHA_SITE_KEY", "")
 	recaptchaSecret            = getEnvWithDefault("RECAPTCHA_SECRET_KEY", "")
@@ -91,6 +95,15 @@ func initLoginSessionBuilder(db *gorm.DB, pb *presets.Builder, ab *activity.Buil
 				})
 			}
 
+			if loginDingtalkAppid != "" && loginDingtalkSecret != "" {
+				providers = append(providers, &login.Provider{
+					Goth: dingtalk.New(loginDingtalkAppid, loginDingtalkSecret, baseURL+"/auth/callback?provider="+models.OAuthProviderDingtalk, loginDingtalkCorpId, "openid", "corpid"),
+					Key:  models.OAuthProviderDingtalk,
+					Text: "LoginProviderDingtalkText",
+					Logo: RawHTML(`<svg width="56" height="24" xmlns="http://www.w3.org/2000/svg"><path d="M14.474 11.239C10.651 8.287 6.341 4.378 1.616.185c-.373-.33-.703-.2-.87.239-1.064 2.812-.031 5.31 1.636 6.75 1.675 1.444 4.164 2.775 5.69 3.481.059.028.007.115-.053.088C5.217 9.51 3.269 8.618.625 6.58c-.284-.22-.572-.134-.607.294-.216 2.688 1.504 4.8 3.424 5.513 1.189.442 2.488.686 3.693.832.064.007.05.1-.014.1-1.553.005-3.43-.367-5.054-.991-.343-.132-.462.142-.41.359.278 1.135 1.683 2.872 3.92 3.237.417.068.863.077 1.26.065.095-.003.117.05.087.122l-1.586 2.714c-.052.086-.02.156.088.156h2.005c.092 0 .15.06.102.138-.048.079-2.677 4.439-2.801 4.647-.109.181.02.32.223.171l8.846-6.476c.11-.081.083-.19-.071-.19h-1.798c-.118 0-.143-.079-.063-.159.08-.08 2.04-2.033 2.736-2.764.726-.763 1.097-2.161-.13-3.11m28.633-6.29h-2.031L39.74 7.545c-.071.147.019.303.175.303h6.061l.213-1.733h-3.68l.599-1.167zm-3.884 6.665h1.604l-.25 2.043h-1.605l-.213 1.733h1.606l-.524 4.285c-.115.935.838 1.417 1.778 1.25 1.289-.23 1.79-.395 2.86-.887l.231-1.883c-.607.292-1.847.65-2.499.801-.209.05-.395-.073-.37-.282l.404-3.284h2.805l.213-1.733h-2.805l.25-2.043h2.805l.213-1.732h-6.29l-.214 1.732zm16.209-5.498h-7.678l-.213 1.733h4.138l-1.298 10.576a.35.35 0 01-.339.301h-3.278l-.231 1.884h3.956c.832 0 1.59-.675 1.691-1.507l1.382-11.254h1.657l.213-1.733zM24.164 4.948h-2.03l-1.338 2.597c-.07.147.02.303.176.303h6.061l.213-1.733h-3.68l.598-1.167zm-3.884 6.665h1.604l-.25 2.043H20.03l-.213 1.733h1.606l-.524 4.285c-.115.935.838 1.417 1.778 1.25 1.289-.23 1.791-.395 2.86-.887l.232-1.883c-.608.292-1.848.65-2.5.801-.209.05-.395-.073-.37-.282l.405-3.284h2.804l.213-1.733h-2.806l.251-2.043h2.805l.213-1.732h-6.291l-.213 1.732h.001zM28.6 7.848h4.138l-1.3 10.576a.35.35 0 01-.338.301h-3.278l-.23 1.884h3.955c.832 0 1.59-.675 1.692-1.507L34.62 7.848h1.657l.213-1.733h-7.68l-.212 1.733z" fill="#007FFF" fill-rule="evenodd"/></svg>`),
+				})
+			}
+
 			return providers
 		}()...).
 		HomeURLFunc(func(r *http.Request, user interface{}) string {
@@ -121,6 +134,7 @@ func initLoginSessionBuilder(db *gorm.DB, pb *presets.Builder, ab *activity.Buil
 		OAuthIdentifier(models.OAuthProviderGoogle, login.OAuthIdentifierEmail).
 		OAuthIdentifier(models.OAuthProviderMicrosoftOnline, login.OAuthIdentifierEmail).
 		OAuthIdentifier(models.OAuthProviderGithub, login.OAuthIdentifierEmail).
+		OAuthIdentifier(models.OAuthProviderDingtalk, login.OAuthIdentifierNickName).
 		AfterOAuthComplete(func(r *http.Request, user interface{}, extraVals ...interface{}) error {
 			return nil
 		}).

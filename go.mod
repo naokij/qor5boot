@@ -9,7 +9,7 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.10
 	github.com/iancoleman/strcase v0.3.0
 	github.com/joho/godotenv v1.5.1
-	github.com/markbates/goth v1.80.0
+	github.com/markbates/goth v1.81.0
 	github.com/ory/ladon v1.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/qor5/admin/v3 v3.2.0
@@ -22,6 +22,8 @@ require (
 	gorm.io/driver/postgres v1.5.9
 	gorm.io/gorm v1.25.12
 )
+
+replace github.com/markbates/goth => github.com/naokij/goth v1.0.0-dingtalk
 
 require (
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
