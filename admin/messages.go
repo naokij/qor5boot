@@ -499,10 +499,11 @@ var Messages_zh_CN = &Messages{
 }
 
 type Messages_ModelsI18nModuleKey struct {
-	QOR5Example string
-	Roles       string
-	Users       string
-	Dashboard   string
+	SidebarTitle string
+	QOR5Example  string
+	Roles        string
+	Users        string
+	Dashboard    string
 
 	Posts          string
 	PostsID        string
@@ -719,6 +720,7 @@ type Messages_ModelsI18nModuleKey struct {
 }
 
 var Messages_en_US_ModelsI18nModuleKey = &Messages_ModelsI18nModuleKey{
+	SidebarTitle:        "QOR5Boot",
 	Posts:               "Posts",
 	PostsID:             "ID",
 	PostsTitle:          "Title",
@@ -938,6 +940,7 @@ var Messages_en_US_ModelsI18nModuleKey = &Messages_ModelsI18nModuleKey{
 }
 
 var Messages_zh_CN_ModelsI18nModuleKey = &Messages_ModelsI18nModuleKey{
+	SidebarTitle:   "QOR5Boot",
 	Posts:          "帖子 示例",
 	PostsID:        "ID",
 	PostsTitle:     "标题",

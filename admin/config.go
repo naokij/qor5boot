@@ -142,6 +142,7 @@ func NewConfig(db *gorm.DB, enableWork bool) Config {
 	b.GetI18n().
 		SupportLanguages(language.SimplifiedChinese, language.English).
 		RegisterForModule(language.SimplifiedChinese, presets.ModelsI18nModuleKey, Messages_zh_CN_ModelsI18nModuleKey).
+		RegisterForModule(language.English, presets.ModelsI18nModuleKey, Messages_en_US_ModelsI18nModuleKey).
 		RegisterForModule(language.SimplifiedChinese, I18nAdminKey, Messages_zh_CN).
 		RegisterForModule(language.English, I18nAdminKey, Messages_en_US).
 		GetSupportLanguagesFromRequestFunc(func(r *http.Request) []language.Tag {
@@ -353,9 +354,9 @@ func configBrand(b *presets.Builder) {
 	})
 
 	b.BrandFunc(func(ctx *web.EventContext) h.HTMLComponent {
-		msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
+		//msgr := i18n.MustGetModuleMessages(ctx.R, I18nAdminKey, Messages_zh_CN).(*Messages)
 		logo := "/admin/assets/logo.svg"
-		b.BrandTitle(msgr.SidebarTitle)
+		b.BrandTitle("SidebarTitle")
 
 		return h.Div(
 			v.VRow(
